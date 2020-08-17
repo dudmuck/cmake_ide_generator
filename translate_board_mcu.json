@@ -1,0 +1,40 @@
+{
+    "help" : "translate board and mcu names to those required by SW4STM32 and STM32CubeIDE",
+    "groups":
+    [
+        {
+            "family": "nucleo",
+            "members":
+            [
+                { "substring" : "f030", "realName" : "NUCLEO-F030R8", "mcu" : "STM32F030R8Tx" },
+                { "substring" : "f070", "realName" : "NUCLEO-F070RB", "mcu" : "STM32F070RBTx" },
+                { "substring" : "f072", "realName" : "NUCLEO-F072RB", "mcu" : "STM32F072RBTx" },
+                { "substring" : "f091", "realName" : "NUCLEO-F091RC", "mcu" : "STM32F091RCTx" },
+                { "substring" : "f103", "realName" : "NUCLEO-F103RB", "mcu" : "STM32F103RBTx" },
+                { "substring" : "f302", "realName" : "NUCLEO-F302R8", "mcu" : "STM32F302R8Tx" },
+                { "substring" : "f303", "realName" : "NUCLEO-F303RE", "mcu" : "STM32F303RETx" },
+                { "substring" : "f334", "realName" : "NUCLEO-F334R8", "mcu" : "STM32F334R8Tx" },
+                { "substring" : "f401", "realName" : "NUCLEO-F401RE", "mcu" : "STM32F401RETx" },
+                { "substring" : "f410", "realName" : "NUCLEO-F410RB", "mcu" : "STM32F410RBTx" },
+                { "substring" : "f411", "realName" : "NUCLEO-F411RE", "mcu" : "STM32F411RETx" },
+                { "substring" : "f446", "realName" : "NUCLEO-F446RE", "mcu" : "STM32F446RETx" },
+                { "substring" : "l010", "realName" : "NUCLEO-L010RB", "mcu" : "STM32L010RBTx" },
+                { "substring" : "l053", "realName" : "NUCLEO-L053R8", "mcu" : "STM32L053R8Tx" },
+                { "substring" : "l073", "realName" : "NUCLEO-L073RZ", "mcu" : "STM32L073RZTx" },
+                { "substring" : "l152", "realName" : "NUCLEO-L152RE", "mcu" : "STM32L152RETx" },
+                { "substring" : "l452", "realName" : "NUCLEO-L452RE", "mcu" : "STM32L452RETx" },
+                { "substring" : "l476", "realName" : "NUCLEO-L476RG", "mcu" : "STM32L476RGTx" }
+            ]
+        },
+        {
+            "members":
+            [
+                { "substring" : "SKiM980A", "mcu" : "STM32L151CBUxA" },
+                { "substring" : "SKiM881AXL", "mcu" : "STM32L081CZTx" },
+                { "substring" : "SKiM880B", "mcu" : "STM32L151CBUxA" },
+                { "substring" : "NAMote72", "mcu" : "STM32L152RCTx" },
+                { "substring" : "B-L072Z-LRWAN1", "mcu" : "STM32L072CZYx" }
+            ]
+        }
+    ]
+}
