@@ -40,7 +40,7 @@ Projects would create directly if source cmake project uses gcc, and IDE also us
 * more?  Cypress, Maxim, Nordic, Toshiba, etc.
 
 non-eclipse based:
-* ARM [Keil µVision](http://www2.keil.com/mdk5/uvision/)
+* ARM [Keil ÂµVision](http://www2.keil.com/mdk5/uvision/)
 * IAR [Embedded Workbench](https://www.iar.com/iar-embedded-workbench/)
 * Microchip [MPLAB X IDE](https://www.microchip.com/mplab/mplab-x-ide)
 * more?
@@ -51,10 +51,10 @@ non-eclipse based:
 on distributions using apt package management:
 ``sudo apt install libxml2-dev libjson-c-dev``
 or equivalent packages for your Linux distribution
-*`` mkdir build``
-*`` cd build``
-*`` cmake ..``
-*`` make``
+* `` mkdir build``
+* `` cd build``
+* `` cmake ..``
+* `` make``
 
 ## building on Windows
 tested using http://mingw-w64.org/doku.php/download/win-builds
