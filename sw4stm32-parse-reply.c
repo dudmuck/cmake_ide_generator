@@ -183,7 +183,7 @@ void put_assembler_options()
 
 void put_post_build_steps(const char *artifactExtension)
 {
-    char str[256];
+    char str[768];
     char id_str[128];
 
     xmlTextWriterWriteAttribute(cproject_writer, "postannouncebuildStep", "Generating binary and Printing size information:");

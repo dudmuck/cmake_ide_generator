@@ -490,6 +490,8 @@ int parse_index(const char *jsonFileName, char *cache_filename, char *codemodel_
         goto index_done;
     }
 
+    ret = 0;
+
 index_done:
     fclose(fp);
     return ret;
@@ -565,6 +567,36 @@ int project_start(bool force)
         return -EEXIST;
     }
 
+    dp = opendir(reply_directory);
+    if (dp == NULL) {
+        perror(reply_directory);
+        return -1;
+    }
+
+    includes_list = NULL;
+    defines_list = NULL;
+    from_codemodel.specs_list = NULL;
+    from_codemodel.compile_fragment_list = NULL;
+
+    ret = -1;
+    while (ep = readdir (dp)) {
+        if (strncmp(ep->d_name, index_prefix, strlen(index_prefix)) == 0) {
+            strcpy(full_path, reply_directory);
+            strcat(full_path, "/");
+            strcat(full_path, ep->d_name);
+            ret = parse_index(full_path, cache_filename, codemodel_filename);
+            printf("%d = parse_index()\r\n", ret);
+            break;
+        }
+    }
+
+    (void) closedir (dp);
+
+    if (ret < 0) {
+        printf("failed to find cmake json index file\r\n");
+        return ret;
+    }
+
     project_writer = xmlNewTextWriterFilename(xml_filename, 0);
     if (project_writer == NULL) {
         printf("cannot create xml writer\r\n");
@@ -581,29 +613,6 @@ int project_start(bool force)
         return -1;
     }
     xmlTextWriterSetIndentString(project_writer, "\t");
-
-    dp = opendir(reply_directory);
-    if (dp == NULL) {
-        perror(reply_directory);
-        return -1;
-    }
-
-    includes_list = NULL;
-    defines_list = NULL;
-    from_codemodel.specs_list = NULL;
-    from_codemodel.compile_fragment_list = NULL;
-
-    while (ep = readdir (dp)) {
-        if (strncmp(ep->d_name, index_prefix, strlen(index_prefix)) == 0) {
-            strcpy(full_path, reply_directory);
-            strcat(full_path, "/");
-            strcat(full_path, ep->d_name);
-            ret = parse_index(full_path, cache_filename, codemodel_filename);
-            break;
-        }
-    }
-
-    (void) closedir (dp);
 
     strcpy(full_path, reply_directory);
     strcat(full_path, "/");
