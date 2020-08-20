@@ -82,6 +82,7 @@ void put_toolchain_version()
 
     xmlTextWriterStartElement(cproject_writer, "option");
     strcpy(parent_str, "com.st.stm32cube.ide.mcu.option.internal.toolchain.version");
+    put_id(parent_str, id_str);
     xmlTextWriterWriteAttribute(cproject_writer, "id", id_str);
     xmlTextWriterWriteAttribute(cproject_writer, "superClass", parent_str);
     xmlTextWriterWriteAttribute(cproject_writer, "value", "7-2018-q2-update");

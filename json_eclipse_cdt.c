@@ -439,20 +439,30 @@ codemodel_done:
 
 int parse_index(const char *jsonFileName, char *cache_filename, char *codemodel_filename)
 {
-    char buffer[8192];
+    struct stat st;
+    char *buffer = NULL;
     struct json_object *parsed_json;
-    FILE *fp = fopen(jsonFileName, "r");
+    FILE *fp;
     int ret = -1;
 
     codemodel_filename[0] = 0;
     cache_filename[0] = 0;
 
-    if (fp == NULL) {
+    ret = stat(jsonFileName, &st);
+    if (ret < 0) {
         perror(jsonFileName);
         return ret;
     }
 
-    fread(buffer, sizeof(buffer), 1, fp);
+    fp = fopen(jsonFileName, "r");
+    if (fp == NULL) {
+        perror(jsonFileName);
+        return -1;
+    }
+
+    buffer = malloc(st.st_size);
+
+    fread(buffer, st.st_size, 1, fp);
 
     parsed_json = json_tokener_parse(buffer);
 
@@ -494,6 +504,8 @@ int parse_index(const char *jsonFileName, char *cache_filename, char *codemodel_
 
 index_done:
     fclose(fp);
+    if (buffer)
+        free(buffer);
     return ret;
 }
 
@@ -585,7 +597,6 @@ int project_start(bool force)
             strcat(full_path, "/");
             strcat(full_path, ep->d_name);
             ret = parse_index(full_path, cache_filename, codemodel_filename);
-            printf("%d = parse_index()\r\n", ret);
             break;
         }
     }
@@ -1212,6 +1223,7 @@ int cproject_start(bool force)
     instance_t debugInstance, releaseInstance;
     put_cconfiguration(true, &debugInstance);
     put_cconfiguration(false, &releaseInstance);
+
     xmlTextWriterEndElement(cproject_writer); // storageModule
 
     xmlTextWriterStartElement(cproject_writer, "storageModule");
@@ -1232,7 +1244,12 @@ int cproject_start(bool force)
 
     xmlTextWriterStartElement(cproject_writer, "scannerConfigBuildInfo");
     {
-        char str[256];
+        unsigned len = 12;  // semicolons
+        len += strlen(debugInstance.config_gnu_cross_exe);
+        len += strlen(debugInstance.config_gnu_cross_exe);
+        len += strlen(debugInstance.tool_gnu_cross_c_compiler);
+        len += strlen(debugInstance.tool_gnu_cross_c_compiler_input);
+        char *str = malloc(len);
         strcpy(str, debugInstance.config_gnu_cross_exe);
         strcat(str, ";");
         strcat(str, debugInstance.config_gnu_cross_exe);
@@ -1241,6 +1258,7 @@ int cproject_start(bool force)
         strcat(str, ";");
         strcat(str, debugInstance.tool_gnu_cross_c_compiler_input);
         xmlTextWriterWriteAttribute(cproject_writer, "instanceId", str);
+        free(str);
     }
     xmlTextWriterStartElement(cproject_writer, "autodiscovery");
     xmlTextWriterWriteAttribute(cproject_writer, "enabled", "true");
@@ -1251,7 +1269,12 @@ int cproject_start(bool force)
 
     xmlTextWriterStartElement(cproject_writer, "scannerConfigBuildInfo");
     {
-        char str[256];
+        unsigned len = 12;  // semicolons
+        len += strlen(releaseInstance.config_gnu_cross_exe);
+        len += strlen(releaseInstance.config_gnu_cross_exe);
+        len += strlen(releaseInstance.tool_gnu_cross_c_compiler);
+        len += strlen(releaseInstance.tool_gnu_cross_c_compiler_input);
+        char *str = malloc(len);
         strcpy(str, releaseInstance.config_gnu_cross_exe);
         strcat(str, ";");
         strcat(str, releaseInstance.config_gnu_cross_exe);
@@ -1260,7 +1283,9 @@ int cproject_start(bool force)
         strcat(str, ";");
         strcat(str, releaseInstance.tool_gnu_cross_c_compiler_input);
         xmlTextWriterWriteAttribute(cproject_writer, "instanceId", str);
+        free(str);
     }
+
     xmlTextWriterStartElement(cproject_writer, "autodiscovery");
     xmlTextWriterWriteAttribute(cproject_writer, "enabled", "true");
     xmlTextWriterWriteAttribute(cproject_writer, "problemReportingEnabled", "");
