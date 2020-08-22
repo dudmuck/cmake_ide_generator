@@ -156,7 +156,7 @@ void get_c_dialect_value_from_fragment(const char *in, const char **out)
         *out = "gccdefault";
 }
 
-void put_assembler_options()
+void put_assembler_options(char debugging_level)
 {
     char parent_str[96];
     char id_str[128];
@@ -167,9 +167,18 @@ void put_assembler_options()
     put_id(parent_str, id_str);
     xmlTextWriterWriteAttribute(cproject_writer, "id", id_str);
     xmlTextWriterWriteAttribute(cproject_writer, "superClass", parent_str);
-    sprintf(str, "%s.tool.assembler.option.debuglevel.value.g0", TITLE);   // TODO, get value from cmake-file-api
-    xmlTextWriterWriteAttribute(cproject_writer, "value", str);
-    xmlTextWriterWriteAttribute(cproject_writer, "valueType", "enumerated");
+    if (debugging_level != 0) {
+        strcpy(str, TITLE);
+        strcat(str, ".tool.assembler.option.debuglevel.value.g");
+        if (debugging_level != '2') {
+            char flag[2];
+            flag[0] = debugging_level;
+            flag[1] = 0;
+            strcat(str, flag);
+        }
+        xmlTextWriterWriteAttribute(cproject_writer, "value", str);
+        xmlTextWriterWriteAttribute(cproject_writer, "valueType", "enumerated");
+    }
     xmlTextWriterEndElement(cproject_writer); // option
 }
 
@@ -194,7 +203,14 @@ void put_c_debug_level(char debugging_level)
     xmlTextWriterWriteAttribute(cproject_writer, "id", id_str);
     xmlTextWriterWriteAttribute(cproject_writer, "superClass", parent_str);
     if (debugging_level != 0) {
-        sprintf(str, "%s.tool.c.compiler.option.debuglevel.value.g%c", TITLE, debugging_level);
+        strcpy(str, TITLE);
+        strcat(str, ".tool.c.compiler.option.debuglevel.value.g");
+        if (debugging_level != '2') {
+            char flag[2];
+            flag[0] = debugging_level;
+            flag[1] = 0;
+            strcat(str, flag);
+        }
         xmlTextWriterWriteAttribute(cproject_writer, "value", str);
         xmlTextWriterWriteAttribute(cproject_writer, "valueType", "enumerated");
     }
@@ -208,7 +224,7 @@ void get_cpp_optimization_value(char fragment_in, char *out)
  * -Os   
  * -O1   
  * -O2   
- * -O3   
+ * -O3
  * -Og   
 */
     strcpy(out, TITLE);

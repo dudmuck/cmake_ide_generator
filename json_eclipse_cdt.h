@@ -93,7 +93,7 @@ void put_cdt_project(void);
 void get_bulder_name(char *, const char *);
 void get_cpp_debugging_level_superclass(char *);
 void put_post_build_steps(const char *);
-void put_assembler_options(void);
+void put_assembler_options(char);
 void put_c_debug_level(char);
 void put_c_other_flags(void);
 void get_c_dialect_value_from_fragment(const char *in, const char **out);

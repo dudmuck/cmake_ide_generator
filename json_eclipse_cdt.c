@@ -780,27 +780,33 @@ void put_cconfiguration(bool debugBuild, instance_t *instance)
 
     translate_board_mcu(from_cache.board, Board, Mcu);
 
-    xmlTextWriterStartElement(cproject_writer, "option");
-    sprintf(parent_str, OPTION_MCU_SUPERCLASS, TITLE);
-    put_id(parent_str, id_str);
-    xmlTextWriterWriteAttribute(cproject_writer, "id", id_str);
-    xmlTextWriterWriteAttribute(cproject_writer, "name", "Mcu");
-    xmlTextWriterWriteAttribute(cproject_writer, "superClass", parent_str);
-    xmlTextWriterWriteAttribute(cproject_writer, "value", Mcu);
-    xmlTextWriterWriteAttribute(cproject_writer, "valueType", "string");
-    xmlTextWriterEndElement(cproject_writer); // option
+    if (Mcu[0] != 0) {
+        xmlTextWriterStartElement(cproject_writer, "option");
+        sprintf(parent_str, OPTION_MCU_SUPERCLASS, TITLE);
+        put_id(parent_str, id_str);
+        xmlTextWriterWriteAttribute(cproject_writer, "id", id_str);
+        xmlTextWriterWriteAttribute(cproject_writer, "name", "Mcu");
+        xmlTextWriterWriteAttribute(cproject_writer, "superClass", parent_str);
+        xmlTextWriterWriteAttribute(cproject_writer, "value", Mcu);
+        xmlTextWriterWriteAttribute(cproject_writer, "valueType", "string");
+        xmlTextWriterEndElement(cproject_writer); // option
+    } else
+        printf("Warning: no Mcu defined\r\n");
 
     put_target_id();
 
-    xmlTextWriterStartElement(cproject_writer, "option");
-    sprintf(parent_str, OPTION_BOARD_SUPERCLASS, TITLE);
-    put_id(parent_str, id_str);
-    xmlTextWriterWriteAttribute(cproject_writer, "id", id_str);
-    xmlTextWriterWriteAttribute(cproject_writer, "name", "Board");
-    xmlTextWriterWriteAttribute(cproject_writer, "superClass", parent_str);
-    xmlTextWriterWriteAttribute(cproject_writer, "value", Board);
-    xmlTextWriterWriteAttribute(cproject_writer, "valueType", "string");
-    xmlTextWriterEndElement(cproject_writer); // option
+        if (Board[0] != 0) {
+        xmlTextWriterStartElement(cproject_writer, "option");
+        sprintf(parent_str, OPTION_BOARD_SUPERCLASS, TITLE);
+        put_id(parent_str, id_str);
+        xmlTextWriterWriteAttribute(cproject_writer, "id", id_str);
+        xmlTextWriterWriteAttribute(cproject_writer, "name", "Board");
+        xmlTextWriterWriteAttribute(cproject_writer, "superClass", parent_str);
+        xmlTextWriterWriteAttribute(cproject_writer, "value", Board);
+        xmlTextWriterWriteAttribute(cproject_writer, "valueType", "string");
+        xmlTextWriterEndElement(cproject_writer); // option
+    } else
+        printf("Warning: no Board defined\r\n");
 
     xmlTextWriterStartElement(cproject_writer, "targetPlatform");
     xmlTextWriterWriteAttribute(cproject_writer, "archList", "all");
@@ -1152,8 +1158,7 @@ void put_cconfiguration(bool debugBuild, instance_t *instance)
     xmlTextWriterWriteAttribute(cproject_writer, "name", "MCU GCC Assembler");
     xmlTextWriterWriteAttribute(cproject_writer, "superClass", parent_str);
 
-    put_assembler_options();
-
+    put_assembler_options(debugging_level);
 
     xmlTextWriterStartElement(cproject_writer, "inputType");
     sprintf(parent_str, ASSEMBLER_INPUT_SUPERCLASS, TITLE);

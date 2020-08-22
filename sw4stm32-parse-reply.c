@@ -168,7 +168,7 @@ void get_c_dialect_value_from_fragment(const char *in, const char **out)
         *out = "c90";
 }
 
-void put_assembler_options()
+void put_assembler_options(char debugging_level)
 {
     char parent_str[96];
     char id_str[128];

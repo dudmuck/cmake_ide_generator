@@ -23,12 +23,19 @@ const struct nucleo_table_s nucleo_table[] = {
     { "f410", "NUCLEO-F410RB", "STM32F410RBTx" },
     { "f411", "NUCLEO-F411RE", "STM32F411RETx" },
     { "f446", "NUCLEO-F446RE", "STM32F446RETx" },
+    { "g070", "NUCLEO-G070RB", "STM32G070RBTx" },
+    { "g071", "NUCLEO-G071RB", "STM32G071RBTx" },
+    { "g431", "NUCLEO-G431RB", "STM32G431RBTx" },
+    { "g474", "NUCLEO-G474RE", "STM32G474RETx" },
     { "l010", "NUCLEO-L010RB", "STM32L010RBTx" },
     { "l053", "NUCLEO-L053R8", "STM32L053R8Tx" },
     { "l073", "NUCLEO-L073RZ", "STM32L073RZTx" },
     { "l152", "NUCLEO-L152RE", "STM32L152RETx" },
     { "l452", "NUCLEO-L452RE", "STM32L452RETx" },
     { "l476", "NUCLEO-L476RG", "STM32L476RGTx" },
+    { "l412", "NUCLEO-L412RB-P", "STM32L412RBTx" },
+    { "l433", "NUCLEO-L433RC-P", "STM32L433RCTx" },
+    { "l452", "NUCLEO-L452RE-P", "STM32L452RETx" },
     { NULL, NULL, NULL }
 };
 
@@ -151,6 +158,9 @@ void translate_board_mcu(const char *board_in, char *board_out, char *mcu_out)
 {
     unsigned n;
     char in_lower[64];
+
+    board_out[0] = 0;
+    mcu_out[0] = 0;
 
     string_to_lower(board_in, in_lower);
 
