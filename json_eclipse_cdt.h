@@ -104,3 +104,7 @@ void put_toolchain_type(void);
 void put_toolchain_version(void);
 void put_target_id(void);
 
+#ifdef __WIN32__
+#define fread       broken  /* fread() unusable on windows */
+int fread_(char *buffer, unsigned len, FILE *fp);
+#endif /* __WIN32__ */

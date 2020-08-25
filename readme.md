@@ -1,9 +1,7 @@
 # generate IDE projects with cmake
 
 ## usage
-1. create build directory as your normally would, except location of build directory must be **sibling** of source project directory (for IDEs based on Eclipse CDT):
-	* ``/home/user/proj-src/some-cmake-project``
-	* ``/home/user/proj-src/build-dir-for-that-project``
+1. create build directory as you normally would
 2. run ``query-cmake`` 
 3. run cmake as you normally would
 4. run ``<ide>-parse-reply``
@@ -66,6 +64,9 @@ ensure winbuilds bin directory is in your PATH, in this example c:/winbuilds
 * ``cd build``
 * ``cmake -G "MinGW Makefiles" .. -DLIBXML2_LIBRARY=c:/winbuilds/lib64/libxml2.dll.a``
 * ``gmake``
+
+if compiling is slow on windows, exclude build directory from anti-malware https://support.microsoft.com/en-us/help/4028485/windows-10-add-an-exclusion-to-windows-security
+
 ## Translation of board and MCU names
 (#trans)
 IDEs from MCU vendors might require MCU names to be defined (spelled) correctly in order to function properly.  Some cmake projects may not define ``BOARD``with spelling correct, or MCU part number is not defined precisely ether.

@@ -81,7 +81,11 @@ int try_json(const char *board_in, char *board_out, char *mcu_out)
     }
 
     buffer = malloc(st.st_size);
+#ifdef __WIN32__
+    fread_(buffer, st.st_size, fp);
+#else
     fread(buffer, st.st_size, 1, fp);
+#endif
 
     parsed_json = json_tokener_parse(buffer);
     if (parsed_json == NULL) {

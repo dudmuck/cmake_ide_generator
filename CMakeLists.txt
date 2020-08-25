@@ -28,10 +28,19 @@ target_include_directories(stm32cubeide-parse-reply PUBLIC "${PROJECT_BINARY_DIR
 
 install(TARGETS query-cmake stm32cubeide-parse-reply sw4stm32-parse-reply)
 
-set(CPACK_GENERATOR "DEB")
-set(CPACK_DEBIAN_PACKAGE_MAINTAINER "WR")
+if (CMAKE_HOST_WIN32)
+    install(CODE
+        [[file(GET_RUNTIME_DEPENDENCIES EXECUTABLES sw4stm32-parse-reply.exe)]]
+    )
+    set(CPACK_GENERATOR NSIS)
+    # this utility intended to be run from command line, put onto PATH
+    set(CPACK_NSIS_MODIFY_PATH ON)
+elseif(CMAKE_HOST_UNIX)
+    set(CPACK_GENERATOR DEB)
+    set(CPACK_DEBIAN_PACKAGE_MAINTAINER "WR")
 
-# autogenerate dependency information
-set (CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+    # autogenerate dependency information
+    set (CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+endif()
 
 include(CPack)

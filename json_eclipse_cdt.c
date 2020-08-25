@@ -68,6 +68,43 @@ static void save_compile_args(const char *fragment)
     }
 }
 
+void foobar(const char *buffer)
+{
+    const char *ptr;
+    //unsigned at = 0;
+    int level = 0;
+
+    for (ptr = buffer; *ptr != 0; ptr++) {
+        if (*ptr == '{') {
+            level++;
+            printf("level-in %d at %u\r\n", level, ptr - buffer);
+        } else if (*ptr == '}') {
+            level--;
+            printf("level-out %d at %u\r\n", level, ptr - buffer);
+        }
+    }
+    printf("done %d at %u\r\n", level, ptr - buffer);
+}
+
+#ifdef __WIN32__
+int fread_(char *buffer, unsigned len, FILE *fp)
+{
+    int ret, fd = fileno(fp);
+    char *ptr = buffer;
+    unsigned n;
+
+    for (n = 0; n < len; ) {
+        unsigned to_read = len - n;
+        ret = read(fd, ptr, to_read);
+        if (ret < 1)
+            return ret;
+        n += ret;
+        ptr += ret;
+    }
+    return n;
+}
+#endif /* __WIN32__ */
+
 int parse_target_file_to_linked_resources(const char *source_path, const char *jsonFileName)
 {
     struct stat st;
@@ -91,13 +128,25 @@ int parse_target_file_to_linked_resources(const char *source_path, const char *j
     }
 
     buffer = malloc(st.st_size);
+#ifdef __WIN32__
+    ret = fread_(buffer, st.st_size, fp);
+#else
     ret = fread(buffer, st.st_size, 1, fp);
+#endif
 
     parsed_json = json_tokener_parse(buffer);
+    if (parsed_json == NULL) {
+        printf("cannot parse json in %s\r\n", full_path);
+        ret = -1;
+        goto target_done;
+    }
 
     struct json_object *type_jobj;
     struct json_object *name_jobj;
-    json_object_object_get_ex(parsed_json, "type", &type_jobj);
+    if (!json_object_object_get_ex(parsed_json, "type", &type_jobj)) {
+        printf("no type in %s\r\n", full_path);
+        goto target_done;
+    }
     json_object_object_get_ex(parsed_json, "name", &name_jobj);
     const char *targetType = json_object_get_string(type_jobj);
 
@@ -199,6 +248,7 @@ int parse_target_file_to_linked_resources(const char *source_path, const char *j
         } // ..for (n = 0; n < n_defines; n++)
     } // ..if (json_object_object_get_ex(compileGroup_jobj, "defines", &defines_jobj))
 
+
     struct json_object *includes_jobj;
     if (json_object_object_get_ex(compileGroup_jobj, "includes", &includes_jobj)) {
         unsigned n, n_includes = json_object_array_length(includes_jobj);
@@ -260,6 +310,7 @@ int parse_target_file_to_linked_resources(const char *source_path, const char *j
     } else
         printf("exe no compileCommandFragments\r\n");
     
+
 
     struct json_object *link_jobj;
     if (json_object_object_get_ex(parsed_json, "link", &link_jobj)) {
@@ -336,7 +387,11 @@ int parse_codemodel_to_eclipse_project(const char *jsonFileName)
         return -1;
     }
     buffer = malloc(st.st_size);
+#ifdef __WIN32__
+    ret = fread_(buffer, st.st_size, fp);
+#else
     ret = fread(buffer, st.st_size, 1, fp);
+#endif
 
     parsed_json = json_tokener_parse(buffer);
     json_object_object_get_ex(parsed_json, "configurations", &configurations);
@@ -462,7 +517,11 @@ int parse_index(const char *jsonFileName, char *cache_filename, char *codemodel_
 
     buffer = malloc(st.st_size);
 
+#ifdef __WIN32__
+    fread_(buffer, st.st_size, fp);
+#else
     fread(buffer, st.st_size, 1, fp);
+#endif
 
     parsed_json = json_tokener_parse(buffer);
 
@@ -531,7 +590,11 @@ int parse_cache(const char *jsonFileName)
     }
     buffer = malloc(st.st_size);
 
+#ifdef __WIN32__
+    ret = fread_(buffer, st.st_size, fp);
+#else
     ret = fread(buffer, st.st_size, 1, fp);
+#endif
 
     parsed_json = json_tokener_parse(buffer);
 
@@ -1342,3 +1405,4 @@ void free_lists()
         my_list = next;
     }
 }
+
