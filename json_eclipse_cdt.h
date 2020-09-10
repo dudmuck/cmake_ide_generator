@@ -80,12 +80,9 @@ void free_lists(void);
 void get_us(char *dest);
 void put_id(const char *in, char *out);
 
-void translate_board_mcu(const char *board_in, char *board_out, char *mcu_out);
-
 /* callbacks: */
 void write_natures(void );
 void put_ScannerConfigBuilder_triggers(void);
-void translate_board_mcu(const char*, char*, char*);
 void get_c_optimization_value(char, char *);
 void get_cpp_optimization_value(char, char *);
 void get_assembler_superclass(bool, char *);
@@ -104,7 +101,3 @@ void put_toolchain_type(void);
 void put_toolchain_version(void);
 void put_target_id(void);
 
-#ifdef __WIN32__
-#define fread       broken  /* fread() unusable on windows */
-int fread_(char *buffer, unsigned len, FILE *fp);
-#endif /* __WIN32__ */

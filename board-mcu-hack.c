@@ -1,8 +1,11 @@
 #include <stdio.h>
 #include <strings.h>
 #include <ctype.h>
+#include <sys/stat.h>
+#include <stdlib.h>
+#include <json-c/json.h>
 
-#include "json_eclipse_cdt.h"
+#include "board-mcu-hack.h"
 
 struct nucleo_table_s {
     const char * const inBoard;
@@ -200,4 +203,23 @@ void translate_board_mcu(const char *board_in, char *board_out, char *mcu_out)
         }
     }
 }
+
+#ifdef __WIN32__
+int fread_(char *buffer, unsigned len, FILE *fp)
+{
+    int ret, fd = fileno(fp);
+    char *ptr = buffer;
+    unsigned n;
+
+    for (n = 0; n < len; ) {
+        unsigned to_read = len - n;
+        ret = read(fd, ptr, to_read);
+        if (ret < 1)
+            return ret;
+        n += ret;
+        ptr += ret;
+    }
+    return n;
+}
+#endif /* __WIN32__ */
 

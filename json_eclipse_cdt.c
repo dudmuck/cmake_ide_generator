@@ -3,6 +3,7 @@
 #include <time.h>
 
 #include "json_eclipse_cdt.h"
+#include "board-mcu-hack.h"
 
 xmlTextWriterPtr project_writer;
 xmlTextWriterPtr cproject_writer;
@@ -51,18 +52,28 @@ static void save_compile_args(const char *fragment)
     token = strtok(str, " ");
 
     while (token != NULL) {
-        int toklen = strlen(token);
+        bool ok_for_xml = true;
+        int n, toklen = strlen(token);
         struct node_s **node = &from_codemodel.compile_fragment_list;
-        if (*node) {
-            while ((*node)->next) {
+        for (n = 0; n < toklen; n++) {
+            if (token[n] < ' ') {
+                /* strtok() could be broken in windows */
+                ok_for_xml = false;
+                break;
+            }
+        }
+        if (ok_for_xml) {
+            if (*node) {
+                while ((*node)->next) {
+                    node = &(*node)->next;
+                }
                 node = &(*node)->next;
             }
-            node = &(*node)->next;
+            (*node) = malloc(sizeof(struct node_s));
+            (*node)->next = NULL;
+            (*node)->str = malloc(toklen+1);
+            strcpy((*node)->str, token);
         }
-        (*node) = malloc(sizeof(struct node_s));
-        (*node)->next = NULL;
-        (*node)->str = malloc(toklen+1);
-        strcpy((*node)->str, token);
 
         token = strtok(NULL, " ");
     }
@@ -86,6 +97,7 @@ void foobar(const char *buffer)
     printf("done %d at %u\r\n", level, ptr - buffer);
 }
 
+#if 0
 #ifdef __WIN32__
 int fread_(char *buffer, unsigned len, FILE *fp)
 {
@@ -104,6 +116,7 @@ int fread_(char *buffer, unsigned len, FILE *fp)
     return n;
 }
 #endif /* __WIN32__ */
+#endif /* if 0 */
 
 int parse_target_file_to_linked_resources(const char *source_path, const char *jsonFileName)
 {
@@ -676,7 +689,7 @@ int project_start(bool force)
         printf("cannot create xml writer\r\n");
         return -1;
     }
-    ret = xmlTextWriterStartDocument(project_writer, NULL, "UTF-8", NULL);
+    ret = xmlTextWriterStartDocument(project_writer, NULL, "UTF-8", "no");
     if (ret < 0) {
         printf("Error at xmlTextWriterStartDocument\n");
         return -1;
