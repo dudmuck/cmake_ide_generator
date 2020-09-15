@@ -14,9 +14,8 @@
 #include "board-mcu-hack.h"
 #include "uvision.h"
 
-/* definitions:
+/*
  * ARM-ADS: Arm Developer Studio
- * c:/Keil_v5/ARM/PACK/.Web/foo.pdsc
  */
 
 const char * const mcu_families[] = {
@@ -145,10 +144,8 @@ int parse_codemodel(const char *jsonFileName, parse_target_file_t ptf)
     json_object_object_get_ex(configuration, "projects", &projects);
     n_projects = json_object_array_length(projects);
     for (p = 0; p < n_projects; p++) {
-        //const char *pstr;
         struct json_object *project = json_object_array_get_idx(projects, p);
         struct json_object *parentIndex;
-        //pstr = json_object_get_string(project);
         json_object_object_get_ex(project, "parentIndex", &parentIndex);
         if (parentIndex == NULL) {
             const char *name;
@@ -156,7 +153,6 @@ int parse_codemodel(const char *jsonFileName, parse_target_file_t ptf)
             json_object_object_get_ex(project, "name", &name_jobj);
             name = json_object_get_string(name_jobj);
             strncpy(from_codemodel.project_name, name, sizeof(from_codemodel.project_name));
-            //printf("proj name %s\r\n", from_codemodel.project_name);
         }
     }
 
@@ -167,32 +163,23 @@ int parse_codemodel(const char *jsonFileName, parse_target_file_t ptf)
         if (json_object_object_get_ex(paths_jobj, "source", &jobj)) {
             source_path = json_object_get_string(jobj);
         }
-        if (json_object_object_get_ex(paths_jobj, "build", &jobj)) {
-            //strncpy(from_codemodel.buildPath, json_object_get_string(jobj), sizeof(from_codemodel.buildPath));
-            //printf("buildPath %s\r\n", json_object_get_string(jobj));
-        }
     }
 
     struct json_object *targets;
     json_object_object_get_ex(configuration, "targets", &targets);
     unsigned n_targets = json_object_array_length(targets);
     for (unsigned t = 0; t < n_targets; t++) {
-        //const char *name;
         struct json_object *target = json_object_array_get_idx(targets, t);
         struct json_object *name_jobj;
-        if (json_object_object_get_ex(target, "name", &name_jobj)) {
-            //name = json_object_get_string(name_jobj);
-        } else {
+        if (!json_object_object_get_ex(target, "name", &name_jobj)) {
             printf("target no name: %s\r\n", json_object_get_string(target));
         }
         struct json_object *jsonFile_jobj;
         if (json_object_object_get_ex(target, "jsonFile", &jsonFile_jobj)) {
-            //parse_target_file(source_path, json_object_get_string(jsonFile_jobj));
             ptf(source_path, json_object_get_string(jsonFile_jobj));
         }
     }
 
-//codemodel_done:
     free(buffer);
     fclose(fp);
     return ret;
@@ -208,7 +195,6 @@ int parse_target_sources_uvoptx(const char *source_path, const char *jsonFileNam
     char *buffer = NULL;
     char full_path[256];
     int ret = -1;;
-    //printf("parse_target_sources_uvoptx(%s, %s) ", source_path, jsonFileName);
 
     strcpy(full_path, reply_directory);
     strcat(full_path, "/");
@@ -248,7 +234,6 @@ int parse_target_sources_uvoptx(const char *source_path, const char *jsonFileNam
 
     const char *targetType = json_object_get_string(type_jobj);
     if (strcmp("OBJECT_LIBRARY", targetType) != 0 && strcmp("EXECUTABLE", targetType) != 0) {
-        //printf("skipping sources in target type %s\r\n", targetType);
         goto target_done;
     }
 
@@ -284,22 +269,11 @@ int parse_target_sources_uvoptx(const char *source_path, const char *jsonFileNam
             continue;
         }
 
-        const char *file_type = "?";
         char *bn, *ptr;
         const char *path = json_object_get_string(path_jobj);
         ptr = malloc(strlen(path)+1);
         strcpy(ptr, path);
         bn = basename(ptr);
-        if (strstr(bn, ".c")) {
-            file_type = "1";
-        } else if (strstr(bn, ".s")) {
-            /* TODO: read gnu asm, output armcc asm */
-            printf("uvoptx skipping asm file %s\r\n", path); // parse_target_sources_uvoptx
-            continue;
-        } else {
-            printf("%s unknown file type\r\n", bn);
-            continue;
-        }
 
         xmlTextWriterStartElement(uvoptx_writer, (xmlChar*)"File");
 
@@ -309,12 +283,20 @@ int parse_target_sources_uvoptx(const char *source_path, const char *jsonFileNam
         sprintf(str, "%u", FileNumber++);
         xmlTextWriterWriteElement(uvoptx_writer, (xmlChar*)"FileNumber", (xmlChar*)str);
 
-        xmlTextWriterWriteElement(uvoptx_writer, (xmlChar*)"FileType", (xmlChar*)file_type);
-
-        strcpy(str, source_path);
-        strcat(str, "/");
-        strcat(str, path);
-        xmlTextWriterWriteElement(uvoptx_writer, (xmlChar*)"PathWithFileName", (xmlChar*)str);
+        if (strstr(bn, ".c")) {
+            xmlTextWriterWriteElement(uvoptx_writer, (xmlChar*)"FileType", (xmlChar*)"1");
+            strcpy(str, source_path);
+            strcat(str, "/");
+            strcat(str, path);
+            xmlTextWriterWriteElement(uvoptx_writer, (xmlChar*)"PathWithFileName", (xmlChar*)str);
+        } else if (strstr(bn, ".s")) {
+            xmlTextWriterWriteElement(uvoptx_writer, (xmlChar*)"FileType", (xmlChar*)"2");
+            strcpy(str, "./");
+            strcat(str, bn);
+            xmlTextWriterWriteElement(uvoptx_writer, (xmlChar*)"PathWithFileName", (xmlChar*)str);
+        } else {
+            printf("%s unknown file type\r\n", bn);
+        }
 
         xmlTextWriterWriteElement(uvoptx_writer, (xmlChar*)"FilenameWithoutPath", (xmlChar*)bn);
 
@@ -339,7 +321,6 @@ int parse_target_sources_uvprojx(const char *source_path, const char *jsonFileNa
     char *buffer = NULL;
     char full_path[256];
     int ret = -1;;
-    //printf("parse_target_sources_uvprojx(%s, %s) ", source_path, jsonFileName);
 
     strcpy(full_path, reply_directory);
     strcat(full_path, "/");
@@ -379,7 +360,6 @@ int parse_target_sources_uvprojx(const char *source_path, const char *jsonFileNa
 
     const char *targetType = json_object_get_string(type_jobj);
     if (strcmp("OBJECT_LIBRARY", targetType) != 0 && strcmp("EXECUTABLE", targetType) != 0) {
-        //printf("skipping sources in target type %s\r\n", targetType);
         goto target_done;
     }
 
@@ -402,7 +382,6 @@ int parse_target_sources_uvprojx(const char *source_path, const char *jsonFileNa
 
     unsigned n_sources = json_object_array_length(sources_jobj);
     xmlTextWriterStartElement(uvprojx_writer, (xmlChar*)"Files");
-    //printf(" %d ", n_sources);
     for (unsigned n = 0; n < n_sources; n++) {
         struct json_object *path_jobj, *jobj;
         struct json_object *source_jobj = json_object_array_get_idx(sources_jobj, n);
@@ -411,39 +390,35 @@ int parse_target_sources_uvprojx(const char *source_path, const char *jsonFileNa
                 continue;
         }
         if (json_object_object_get_ex(source_jobj, "path", &path_jobj)) {
-            const char *file_type = "?";
+            char str[256];
             char *bn, *ptr;
             const char *path = json_object_get_string(path_jobj);
             ptr = malloc(strlen(path)+1);
             strcpy(ptr, path);
+            xmlTextWriterStartElement(uvprojx_writer, (xmlChar*)"File");
             bn = basename(ptr);
+            xmlTextWriterWriteElement(uvprojx_writer, (xmlChar*)"FileName", (xmlChar*)bn);
+            str[0] = 0;
             if (strstr(bn, ".c")) {
-                file_type = "1";
+                xmlTextWriterWriteElement(uvprojx_writer, (xmlChar*)"FileType", (xmlChar*)"1");
+                strcat(str, source_path);
+                strcat(str, "/");
+                strcat(str, path);
             } else if (strstr(bn, ".s")) {
-                /* TODO: read gnu asm, output armcc asm */
-                printf("uvprojx skipping asm file %s\r\n", path); // parse_target_sources_uvprojx
+                xmlTextWriterWriteElement(uvprojx_writer, (xmlChar*)"FileType", (xmlChar*)"2");
                 if (startup_asm_filename == NULL) {
                     startup_asm_filename = malloc(strlen(source_path) + strlen(path) + 2);
                     strcpy(startup_asm_filename, source_path);
                     strcat(startup_asm_filename, "/");
                     strcat(startup_asm_filename, path);
                 }
-                continue;
+                strcat(str, "./");
+                strcat(str, bn);
             } else {
                 printf("%s unknown file type\r\n", bn);
-                continue;
             }
 
-            xmlTextWriterStartElement(uvprojx_writer, (xmlChar*)"File");
-            xmlTextWriterWriteElement(uvprojx_writer, (xmlChar*)"FileName", (xmlChar*)bn);
-            xmlTextWriterWriteElement(uvprojx_writer, (xmlChar*)"FileType", (xmlChar*)file_type);
-            {
-                char str[256];
-                strcpy(str, source_path);
-                strcat(str, "/");
-                strcat(str, path);
-                xmlTextWriterWriteElement(uvprojx_writer, (xmlChar*)"FilePath", (xmlChar*)str);
-            }
+            xmlTextWriterWriteElement(uvprojx_writer, (xmlChar*)"FilePath", (xmlChar*)str);
             xmlTextWriterEndElement(uvprojx_writer); // File
             free(ptr);
         }
@@ -648,10 +623,8 @@ int uvoptx_start(bool force, const char *Mcu)
 
     xmlTextWriterStartElement(uvoptx_writer, (xmlChar*)"SetRegEntry");
     xmlTextWriterWriteElement(uvoptx_writer, (xmlChar*)"Number", (xmlChar*)"0");
-    xmlTextWriterWriteElement(uvoptx_writer, (xmlChar*)"Key", (xmlChar*)"ST-LINKIII-KEIL_SWO");
+    xmlTextWriterWriteElement(uvoptx_writer, (xmlChar*)"Key", (xmlChar*)"ST-LINKIII-KEIL_SWO"); /* TODO: other vendors besides ST */
     ret = sprintf(str, "-U066EFF555054877567072516 -O10446 -SF4000 -C0 -A0 -I0 -HNlocalhost -HP7184 -P2 -N00(\"ARM CoreSight SW-DP\") -D00(0BC11477) -L00(0) -TO18 -TC10000000 -TP21 -TDS8007 -TDT0 -TDC1F -TIEFFFFFFFF -TIP8 -FO7 -FD%08x -FC1000 -FN1 -FF0%s -FS%08x -FL%06x -FP0($$Device:STM32L073RZTx$%s)", from_linker_script.ram_base, from_pack.ff0, from_linker_script.flash_base, from_linker_script.flash_length, from_pack.flm_path);
-    //printf("%d = sprintf()\r\n", ret);
-//          <Name>-U066EFF555054877567072516 -O10446 -SF4000 -C0 -A0 -I0 -HNlocalhost -HP7184 -P2 -N00("ARM CoreSight SW-DP") -D00(0BC11477) -L00(0) -TO18 -TC10000000 -TP21 -TDS8007 -TDT0 -TDC1F -TIEFFFFFFFF -TIP8 -FO7 -FD20000000 -FC1000 -FN1 -FF0STM32L0xx_192 -FS08000000 -FL030000 -FP0($$Device:STM32L073RZTx$CMSIS\Flash\STM32L0xx_192.FLM)</Name>
     xmlTextWriterWriteElement(uvoptx_writer, (xmlChar*)"Name", (xmlChar*)str);
     xmlTextWriterEndElement(uvoptx_writer); // SetRegEntry
 
@@ -828,8 +801,6 @@ int parse_linker_script(const char *file_name)
         return ret;
     }
 
-    printf("parse_linker_script(%s) %ld\r\n", file_name, st.st_size);
-
     fp = fopen(file_name, "r");
     if (fp == NULL) {
         perror(file_name);
@@ -911,7 +882,6 @@ int parse_linker_script(const char *file_name)
             *out++ = *ptr;
     }
     *out = 0;
-    printf("out vector symbol \"%s\"\r\n", from_linker_script.vector_symbol);
 
     ret = 0;
 linker_script_done:
@@ -978,7 +948,7 @@ typedef enum {
 } pack_state_e;
 
 #define N_DEPTHS        5
-int pack_parse(xmlTextReaderPtr reader, const char *mcu/*, FILE *log*/)
+int pack_parse(xmlTextReaderPtr reader, const char *mcu)
 {
     int ret, n;
     uint32_t rom_start, rom_size;
@@ -1017,44 +987,34 @@ int pack_parse(xmlTextReaderPtr reader, const char *mcu/*, FILE *log*/)
         if (nodeType == XML_NODE_TYPE_START_ELEMENT) {
             if (depth == 0) {
                 if (strcmp("package", name) == 0) {
-                    //fprintf(log, "-> PACKAGE ");
                     pack_state[depth] = PACK_STATE_PACKAGE;
                 }
             } else if (depth == 1 && pack_state[0] == PACK_STATE_PACKAGE) {
                 if (strcmp("releases", name) == 0) {
                     pack_state[depth] = PACK_STATE_RELEASES;
-                    //fprintf(log, "-> RELEASES ");
                 } else if (strcmp("devices", name) == 0) {
                     pack_state[depth] = PACK_STATE_DEVICES;
                 } else if (strcmp("vendor", name) == 0) {
                     pack_state[depth] = PACK_STATE_PACKAGE_VENDOR;
-                    //fprintf(log, "-> PACKAGE_VENDOR");
                 } else if (strcmp("url", name) == 0) {
                     pack_state[depth] = PACK_STATE_PACKAGE_URL;
-                    //fprintf(log, "-> PACKAGE_URL");
                 } else if (strcmp("name", name) == 0) {
                     pack_state[depth] = PACK_STATE_PACKAGE_NAME;
-                    //fprintf(log, "-> PACKAGE_NAME");
                 }
             } else if (depth == 2) {
                 if (pack_state[1] == PACK_STATE_RELEASES) {
-                    //fprintf(log, " RELEASES:");
                     if (from_pack.packVersion[0] == 0 && strcmp("release", name) == 0) {
                         char *attrib = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"version");
                         strcpy(from_pack.packVersion, attrib);
-                        //fprintf(log, "%s ", attrib);
                         free(attrib);
-                    } /*else
-                        fprintf(log, "--------- ");*/
+                    }
                 } else if (pack_state[1] == PACK_STATE_DEVICES) {
-                    //fprintf(log, " DEVICES:");
                     if (strcmp("family", name) == 0) {
                         pack_state[depth] = PACK_STATE_DEVICES_FAMILY;
                         char *va = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"Dvendor");
                         n = 0;
                         for (char *ptr = va; *ptr != 0 && *ptr != ':'; ptr++)
                             from_pack.vendor[n++] = *ptr;
-                        //fprintf(log, " ->DEVICES_FAMILY ");
                         free(va);
                     }
                 }
@@ -1062,20 +1022,16 @@ int pack_parse(xmlTextReaderPtr reader, const char *mcu/*, FILE *log*/)
                 if (pack_state[2] == PACK_STATE_DEVICES_FAMILY) {
                     if (strcmp("processor", name) == 0) {
                         char *a = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"Dcore");
-                        //fprintf(log, "devices-family-processor_attrs:%s ", a);
                         strcpy(from_pack.processorCore, a);
                         free(a);
                     } else if (strcmp("subFamily", name) == 0) {
                         pack_state[3] = PACK_STATE_DEVICES_SUB_FAMILY;
-                        //fprintf(log, " ->DEVICES_SUB_FAMILY ");
                     }
                 }
             } else if (depth == 4) {
                 if (pack_state[3] == PACK_STATE_DEVICES_SUB_FAMILY) {
-                    //fprintf(log, "devices-sub-family-%s ", name);
                     if (strcmp("device", name) == 0) {
                         pack_state[depth] = PACK_STATE_DEVICE;
-                        //fprintf(log, " ->DEVICE ");
                     } else if (strcmp("debug", name) == 0) {
                         char *svdAttr = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"svd");
                         strcpy(svd, svdAttr);
@@ -1088,7 +1044,6 @@ int pack_parse(xmlTextReaderPtr reader, const char *mcu/*, FILE *log*/)
                 }
             } else if (depth == 5) {
                 if (pack_state[4] == PACK_STATE_DEVICE) {
-                    //fprintf(log, "device-%s ", name);
                     if (strcmp("memory", name) == 0) {
                         char *id_attrib = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"id");
                         char *start_attrib = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"start");
@@ -1111,7 +1066,6 @@ int pack_parse(xmlTextReaderPtr reader, const char *mcu/*, FILE *log*/)
                         sscanf(size_attrib , "%x", &size);
                         if (start == rom_start && size == rom_size) {
                             char *name_attrib = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"name");
-                            //fprintf(log, "algorithm-rom %s ", name_attrib);
                             strcpy(rom_algorithm, name_attrib);
                             free(name_attrib);
                         }
@@ -1120,7 +1074,6 @@ int pack_parse(xmlTextReaderPtr reader, const char *mcu/*, FILE *log*/)
                     } else if (strcmp("variant", name) == 0) {
                         char *attrib = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"Dvariant");
                         if (strcmp(attrib, mcu) == 0) {
-                            //fprintf(log, "wbr ");
                             strcpy(from_pack.rom_algorithm, rom_algorithm);
                             from_pack.rom_start = rom_start;
                             from_pack.rom_size = rom_size;
@@ -1135,31 +1088,15 @@ int pack_parse(xmlTextReaderPtr reader, const char *mcu/*, FILE *log*/)
             }
         } /* ...XML_NODE_TYPE_START_ELEMENT */ else if (nodeType == XML_NODE_TYPE_TEXT) {
             const char *value = (char*)xmlTextReaderConstValue(reader);
-            //fprintf(log, "XML_NODE_TYPE_TEXT ");
             switch (pack_state[1]) {
-                case PACK_STATE_PACKAGE_VENDOR: /*fprintf(log, "get_PACKAGE_VENDOR");*/ strcpy(from_pack.packVendor, value); break;
-                case PACK_STATE_PACKAGE_URL: /*fprintf(log, "get_PACKAGE_URL");*/ strcpy(from_pack.packUrl, value); break;
-                case PACK_STATE_PACKAGE_NAME: /*fprintf(log, "get_PACKAGE_NAME");*/ strcpy(from_pack.packName, value); break;
+                case PACK_STATE_PACKAGE_VENDOR: strcpy(from_pack.packVendor, value); break;
+                case PACK_STATE_PACKAGE_URL: strcpy(from_pack.packUrl, value); break;
+                case PACK_STATE_PACKAGE_NAME: strcpy(from_pack.packName, value); break;
                 default: break;
             }
         } else if (nodeType == XML_NODE_TYPE_END_OF_ELEMENT) {
             pack_state[depth] = PACK_STATE_NONE;
         }
-
-        /*
-        fprintf(log, " depth:%d type:%s %s empty:%d ", 
-	        depth,
-	        nodeTypeToString(nodeType),
-	        name,
-	        xmlTextReaderIsEmptyElement(reader)
-        );
-
-        if (xmlTextReaderHasValue(reader)) {
-            const xmlChar *value = xmlTextReaderConstValue(reader);
-            fprintf(log, "value:\"%s\" ", value);
-        }
-        fprintf(log, "\n");
-        */
     } // ..while ((ret = xmlTextReaderRead(reader)) == 1)
 
 
@@ -1197,7 +1134,6 @@ int find_pack(const char *mcu)
     char path[256];
     const char *mcuFamily = NULL;
     xmlTextReaderPtr reader = NULL;
-    //FILE *log = fopen("log.txt", "w");
 
     for (n = 0; mcu_families[n] != NULL; n++) {
         if (strstr(mcu, mcu_families[n]) != NULL) {
@@ -1225,7 +1161,7 @@ int find_pack(const char *mcu)
             strcpy(full_path, path);
             strcat(full_path, ep->d_name);
             reader = xmlReaderForFile(full_path, NULL, 0);
-            ret = pack_parse(reader, mcu/*, log*/);
+            ret = pack_parse(reader, mcu);
             if (ret != -1)
                 break;
             else {
@@ -1236,13 +1172,11 @@ int find_pack(const char *mcu)
 
     if (reader == NULL) {
         printf("no pack xml for %s, family %s\r\n", mcu, mcuFamily);
-        //fclose(log);
         return -1;
     }
 
     xmlFreeTextReader(reader);
 
-    //fclose(log);
     return 0;
 }
 
@@ -1346,7 +1280,6 @@ int uvprojx_start(bool force, char *Mcu)
         if (*ptr == '/')
             *ptr = '\\';
 #endif /* __WIN32__ */
-    //printf("RegisterFile\t%s\r\n", str);
     xmlTextWriterWriteElement(uvprojx_writer, (xmlChar*)"RegisterFile", (xmlChar*)str);
 
     xmlTextWriterWriteElement(uvprojx_writer, (xmlChar*)"MemoryEnv", (xmlChar*)"");
@@ -1437,7 +1370,7 @@ int uvprojx_start(bool force, char *Mcu)
     xmlTextWriterWriteElement(uvprojx_writer, (xmlChar*)"SelectedForBatchBuild", (xmlChar*)"0");
     xmlTextWriterWriteElement(uvprojx_writer, (xmlChar*)"SVCSIdString", (xmlChar*)"");
 
-    xmlTextWriterEndElement(uvprojx_writer); // TargetCommonOption (line 94, column 9)
+    xmlTextWriterEndElement(uvprojx_writer); // TargetCommonOption
 
     xmlTextWriterStartElement(uvprojx_writer, (xmlChar*)"CommonProperty");
     xmlTextWriterWriteElement(uvprojx_writer, (xmlChar*)"UseCPPCompiler", (xmlChar*)"0");
@@ -1456,7 +1389,6 @@ int uvprojx_start(bool force, char *Mcu)
     xmlTextWriterWriteElement(uvprojx_writer, (xmlChar*)"ComprImg", (xmlChar*)"1");
     xmlTextWriterEndElement(uvprojx_writer); // CommonProperty
 
-//#if 0
     xmlTextWriterStartElement(uvprojx_writer, (xmlChar*)"DllOption");
     /* located at c:/Keil_v5/ARM/BIN/SarmCM3.dll */
     xmlTextWriterWriteElement(uvprojx_writer, (xmlChar*)"SimDllName", (xmlChar*)"SARMCM3.DLL");
@@ -1470,7 +1402,6 @@ int uvprojx_start(bool force, char *Mcu)
     xmlTextWriterWriteElement(uvprojx_writer, (xmlChar*)"TargetDlgDll", (xmlChar*)"TARMCM1.DLL");
     xmlTextWriterWriteElement(uvprojx_writer, (xmlChar*)"TargetDlgDllArguments", (xmlChar*)"-pCM0+");   // TODO from cpu type
     xmlTextWriterEndElement(uvprojx_writer); // DllOption
-//#endif /* if 0 */
 
     xmlTextWriterStartElement(uvprojx_writer, (xmlChar*)"DebugOption");
     xmlTextWriterStartElement(uvprojx_writer, (xmlChar*)"OPTHX");
@@ -1663,10 +1594,8 @@ int uvprojx_start(bool force, char *Mcu)
         char *str = NULL;
         unsigned total_length = 0;
         for (my_list = defines_list; my_list != NULL; my_list = my_list->next) {
-            //printf("define %d %s\r\n", strlen(my_list->str), my_list->str);
             total_length += strlen(my_list->str) + 2;
         }
-        //printf("total_length %d\r\n", total_length);
         str = malloc(total_length+1);
         str[0] = 0;
         for (my_list = defines_list; my_list != NULL; my_list = my_list->next) {
@@ -1677,7 +1606,6 @@ int uvprojx_start(bool force, char *Mcu)
                 strcat(str, my_list->str);
             }
         }
-        //printf("%s\r\n", str);
         xmlTextWriterWriteElement(uvprojx_writer, (xmlChar*)"Define", (xmlChar*)str);
 
         free(str);
@@ -1702,7 +1630,6 @@ int uvprojx_start(bool force, char *Mcu)
                 strcat(str, my_list->str);
             }
         }
-        //printf("%s\r\n", str);
         xmlTextWriterWriteElement(uvprojx_writer, (xmlChar*)"IncludePath", (xmlChar*)str);
 
         free(str);
@@ -1754,12 +1681,7 @@ int uvprojx_start(bool force, char *Mcu)
 
     xmlTextWriterEndElement(uvprojx_writer); // TargetArmAds
 
-    /*
-    xmlTextWriterStartElement(uvprojx_writer, (xmlChar*)"");
-    xmlTextWriterEndElement(uvprojx_writer); //
-    include path line 341
-     */
-    xmlTextWriterEndElement(uvprojx_writer); // TargetOption  (line 380)
+    xmlTextWriterEndElement(uvprojx_writer); // TargetOption
 
     xmlTextWriterStartElement(uvprojx_writer, (xmlChar*)"Groups");
     ret = parse_codemodel(full_path_codemodel, parse_target_sources_uvprojx);
@@ -1964,8 +1886,6 @@ int parse_target_defines_includes(const char *source_path, const char *jsonFileN
     char full_path[256];
     int ret = -1;;
 
-//    printf("parse_target_defines_includes %s ", jsonFileName);
-
     strcpy(full_path, reply_directory);
     strcat(full_path, "/");
     strcat(full_path, jsonFileName);
@@ -1998,7 +1918,6 @@ int parse_target_defines_includes(const char *source_path, const char *jsonFileN
 
     struct json_object *compileGroups_jobj;
     if (!json_object_object_get_ex(parsed_json, "compileGroups", &compileGroups_jobj)) {
-        //printf("missing compileGroups ");       // utility target will not have compileGroups
         goto target_done;
     }
 
@@ -2006,20 +1925,16 @@ int parse_target_defines_includes(const char *source_path, const char *jsonFileN
     if (!json_object_object_get_ex(parsed_json, "name", &name_jobj)) {
         printf("no name in %s\r\n", jsonFileName);
     }
-    //printf("%s\t", json_object_get_string(name_jobj));
 
     struct json_object *type_jobj;
-    if (!json_object_object_get_ex(parsed_json, "type", &type_jobj)) {
-        printf("no type in %s\r\n", jsonFileName);
-    } else {
+    if (json_object_object_get_ex(parsed_json, "type", &type_jobj)) {
         const char *targetType = json_object_get_string(type_jobj);
-        //printf("%s %s %s\r\n", jsonFileName, targetType, json_object_get_string(name_jobj));
         if (strcmp("EXECUTABLE", targetType) == 0) {
             strncpy(from_codemodel.artifactName, json_object_get_string(name_jobj), sizeof(from_codemodel.artifactName));
             parse_executable_target(parsed_json);
         }
-    }
-    //printf("\r\n"); // today
+    } else
+        printf("no type in %s\r\n", jsonFileName);
 
     struct json_object *compileGroup_jobj = json_object_array_get_idx(compileGroups_jobj, 0);
     struct json_object *defines_jobj;
@@ -2150,7 +2065,6 @@ int parse_cache(const char *jsonFileName)
                 struct json_object *value_jobj;
                 if (json_object_object_get_ex(entry_jobj, "value", &value_jobj)) {
                     strcpy(from_cache.board, json_object_get_string(value_jobj));
-                    //printf("board %s\r\n", from_cache.board);
                 }
             }
         }
@@ -2172,7 +2086,6 @@ int json_read()
     const char *index_prefix = "index";
     struct dirent *ep;
 
-    printf("json_read()\r\n");
     dp = opendir(reply_directory);
     if (dp == NULL) {
         perror(reply_directory);
@@ -2196,8 +2109,6 @@ int json_read()
     if (ret < 0) {
         return ret;
     }
-
-    printf("\r\nparse_cache...\r\n");
 
     strcpy(full_path, reply_directory);
     strcat(full_path, "/");
@@ -2244,7 +2155,6 @@ int main(int argc, char *argv[])
     }
 
     if (startup_asm_filename) {
-        printf("startup_asm_filename %s\r\n", startup_asm_filename);
         generate_startup(startup_asm_filename, 0x600, 0x200, from_linker_script.vector_symbol);
 
     }

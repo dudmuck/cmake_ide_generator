@@ -103,7 +103,6 @@ int try_json(const char *board_in, char *board_out, char *mcu_out)
     }
     unsigned n_groups = json_object_array_length(groups_jobj);
     for (unsigned n = 0; n < n_groups; n++) {
-        unsigned x;
         struct json_object *family_jobj, *members_jobj;
         struct json_object *group_jobj = json_object_array_get_idx(groups_jobj, n);
         if (!json_object_object_get_ex(group_jobj, "members", &members_jobj))

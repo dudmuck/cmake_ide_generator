@@ -32,7 +32,7 @@ const char * const CPP_LINKER_INPUT_SUPERCLASS = "com.st.stm32cube.ide.mcu.gnu.m
 
 void put_ScannerConfigBuilder_triggers()
 {
-    xmlTextWriterWriteElement(project_writer, "triggers", "full,incremental,");
+    xmlTextWriterWriteElement(project_writer, (xmlChar*)"triggers", (xmlChar*)"full,incremental,");
 }
 
 void put_target_id()
@@ -40,23 +40,23 @@ void put_target_id()
     char parent_str[96];
     char id_str[128];
 
-    xmlTextWriterStartElement(cproject_writer, "option");
+    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"option");
     strcpy(parent_str, "com.st.stm32cube.ide.mcu.gnu.managedbuild.option.target_cpuid");
     put_id(parent_str, id_str);
-    xmlTextWriterWriteAttribute(cproject_writer, "id", id_str);
-    xmlTextWriterWriteAttribute(cproject_writer, "superClass", parent_str);
-    xmlTextWriterWriteAttribute(cproject_writer, "value", "0");
-    xmlTextWriterWriteAttribute(cproject_writer, "valueType", "string");
+    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"id", (xmlChar*)id_str);
+    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"superClass", (xmlChar*)parent_str);
+    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"value", (xmlChar*)"0");
+    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"valueType", (xmlChar*)"string");
     xmlTextWriterEndElement(cproject_writer); // option
 
 
-    xmlTextWriterStartElement(cproject_writer, "option");
+    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"option");
     strcpy(parent_str, "com.st.stm32cube.ide.mcu.gnu.managedbuild.option.target_coreid");
     put_id(parent_str, id_str);
-    xmlTextWriterWriteAttribute(cproject_writer, "id", id_str);
-    xmlTextWriterWriteAttribute(cproject_writer, "superClass", parent_str);
-    xmlTextWriterWriteAttribute(cproject_writer, "value", "0");
-    xmlTextWriterWriteAttribute(cproject_writer, "valueType", "string");
+    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"id", (xmlChar*)id_str);
+    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"superClass", (xmlChar*)parent_str);
+    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"value", (xmlChar*)"0");
+    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"valueType", (xmlChar*)"string");
     xmlTextWriterEndElement(cproject_writer); // option
 }
 
@@ -65,13 +65,13 @@ void put_toolchain_type()
     char parent_str[96];
     char id_str[128];
 
-    xmlTextWriterStartElement(cproject_writer, "option");
+    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"option");
     strcpy(parent_str, "com.st.stm32cube.ide.mcu.option.internal.toolchain.type");
     put_id(parent_str, id_str);
-    xmlTextWriterWriteAttribute(cproject_writer, "id", id_str);
-    xmlTextWriterWriteAttribute(cproject_writer, "superClass", parent_str);
-    xmlTextWriterWriteAttribute(cproject_writer, "value", "com.st.stm32cube.ide.mcu.gnu.managedbuild.toolchain.base.gnu-tools-for-stm32");
-    xmlTextWriterWriteAttribute(cproject_writer, "valueType", "string");
+    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"id", (xmlChar*)id_str);
+    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"superClass", (xmlChar*)parent_str);
+    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"value", (xmlChar*)"com.st.stm32cube.ide.mcu.gnu.managedbuild.toolchain.base.gnu-tools-for-stm32");
+    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"valueType", (xmlChar*)"string");
     xmlTextWriterEndElement(cproject_writer); // option
 }
 
@@ -80,13 +80,13 @@ void put_toolchain_version()
     char parent_str[96];
     char id_str[128];
 
-    xmlTextWriterStartElement(cproject_writer, "option");
+    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"option");
     strcpy(parent_str, "com.st.stm32cube.ide.mcu.option.internal.toolchain.version");
     put_id(parent_str, id_str);
-    xmlTextWriterWriteAttribute(cproject_writer, "id", id_str);
-    xmlTextWriterWriteAttribute(cproject_writer, "superClass", parent_str);
-    xmlTextWriterWriteAttribute(cproject_writer, "value", "7-2018-q2-update");
-    xmlTextWriterWriteAttribute(cproject_writer, "valueType", "string");
+    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"id", (xmlChar*)id_str);
+    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"superClass", (xmlChar*)parent_str);
+    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"value", (xmlChar*)"7-2018-q2-update");
+    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"valueType", (xmlChar*)"string");
     xmlTextWriterEndElement(cproject_writer); // option
 }
 
@@ -104,14 +104,14 @@ void put_c_other_flags()
     char parent_str[96];
     char id_str[128];
 
-    xmlTextWriterStartElement(cproject_writer, "option");
-    xmlTextWriterWriteAttribute(cproject_writer, "IS_BUILTIN_EMPTY", "false");
-    xmlTextWriterWriteAttribute(cproject_writer, "IS_VALUE_EMPTY", "false");
+    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"option");
+    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"IS_BUILTIN_EMPTY", (xmlChar*)"false");
+    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"IS_VALUE_EMPTY", (xmlChar*)"false");
     sprintf(parent_str, "%s.tool.c.compiler.option.otherflags", TITLE);
     put_id(parent_str, id_str);
-    xmlTextWriterWriteAttribute(cproject_writer, "id", id_str);
-    xmlTextWriterWriteAttribute(cproject_writer, "superClass", parent_str);
-    xmlTextWriterWriteAttribute(cproject_writer, "valueType", "stringList");
+    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"id", (xmlChar*)id_str);
+    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"superClass", (xmlChar*)parent_str);
+    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"valueType", (xmlChar*)"stringList");
     for (struct node_s *my_list = from_codemodel.compile_fragment_list; my_list != NULL; my_list = my_list->next) {
         if (my_list->taken)
             continue;
@@ -125,9 +125,9 @@ void put_c_other_flags()
         if (strcmp(my_list->str, "-ffunction-sections") == 0) // added by default by sw4stm32
             continue;
 
-        xmlTextWriterStartElement(cproject_writer, "listOptionValue");
-        xmlTextWriterWriteAttribute(cproject_writer, "builtIn", "false");
-        xmlTextWriterWriteAttribute(cproject_writer, "value", my_list->str);
+        xmlTextWriterStartElement(cproject_writer, (xmlChar*)"listOptionValue");
+        xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"builtIn", (xmlChar*)"false");
+        xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"value", (xmlChar*)my_list->str);
         xmlTextWriterEndElement(cproject_writer); // listOptionValue 
 
         my_list->taken = true;
@@ -162,11 +162,11 @@ void put_assembler_options(char debugging_level)
     char id_str[128];
     char str[256];
 
-    xmlTextWriterStartElement(cproject_writer, "option");
+    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"option");
     sprintf(parent_str, "%s.tool.assembler.option.debuglevel", TITLE);
     put_id(parent_str, id_str);
-    xmlTextWriterWriteAttribute(cproject_writer, "id", id_str);
-    xmlTextWriterWriteAttribute(cproject_writer, "superClass", parent_str);
+    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"id", (xmlChar*)id_str);
+    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"superClass", (xmlChar*)parent_str);
     if (debugging_level != 0) {
         strcpy(str, TITLE);
         strcat(str, ".tool.assembler.option.debuglevel.value.g");
@@ -176,8 +176,8 @@ void put_assembler_options(char debugging_level)
             flag[1] = 0;
             strcat(str, flag);
         }
-        xmlTextWriterWriteAttribute(cproject_writer, "value", str);
-        xmlTextWriterWriteAttribute(cproject_writer, "valueType", "enumerated");
+        xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"value", (xmlChar*)str);
+        xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"valueType", (xmlChar*)"enumerated");
     }
     xmlTextWriterEndElement(cproject_writer); // option
 }
@@ -197,11 +197,11 @@ void put_c_debug_level(char debugging_level)
     char id_str[128];
     char str[256];
 
-    xmlTextWriterStartElement(cproject_writer, "option");
+    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"option");
     sprintf(parent_str, "%s.tool.c.compiler.option.debuglevel", TITLE);
     put_id(parent_str, id_str);
-    xmlTextWriterWriteAttribute(cproject_writer, "id", id_str);
-    xmlTextWriterWriteAttribute(cproject_writer, "superClass", parent_str);
+    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"id", (xmlChar*)id_str);
+    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"superClass", (xmlChar*)parent_str);
     if (debugging_level != 0) {
         strcpy(str, TITLE);
         strcat(str, ".tool.c.compiler.option.debuglevel.value.g");
@@ -211,8 +211,8 @@ void put_c_debug_level(char debugging_level)
             flag[1] = 0;
             strcat(str, flag);
         }
-        xmlTextWriterWriteAttribute(cproject_writer, "value", str);
-        xmlTextWriterWriteAttribute(cproject_writer, "valueType", "enumerated");
+        xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"value", (xmlChar*)str);
+        xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"valueType", (xmlChar*)"enumerated");
     }
     xmlTextWriterEndElement(cproject_writer); // option 
 }
@@ -270,19 +270,19 @@ void put_cdt_project()
 
     get_us(us_str);
     sprintf(str, "%s.null.%s", from_codemodel.project_name, us_str);
-    xmlTextWriterWriteAttribute(cproject_writer, "id", str);
-    xmlTextWriterWriteAttribute(cproject_writer, "name", from_codemodel.project_name);
+    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"id", (xmlChar*)str);
+    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"name", (xmlChar*)from_codemodel.project_name);
 }
 
 void write_natures()
 {
-    xmlTextWriterWriteElement(project_writer, "nature", "com.st.stm32cube.ide.mcu.MCUProjectNature");
-    xmlTextWriterWriteElement(project_writer, "nature", "com.st.stm32cube.ide.mcu.MCUCubeProjectNature");
-    xmlTextWriterWriteElement(project_writer, "nature", "com.st.stm32cube.ide.mcu.MCUCubeIdeServicesRevAev2ProjectNature");
-    xmlTextWriterWriteElement(project_writer, "nature", "com.st.stm32cube.ide.mcu.MCUAdvancedStructureProjectNature");
-    xmlTextWriterWriteElement(project_writer, "nature", "com.st.stm32cube.ide.mcu.MCUEndUserDisabledTrustZoneProjectNature");
-    xmlTextWriterWriteElement(project_writer, "nature", "com.st.stm32cube.ide.mcu.MCUSingleCpuProjectNature");
-    xmlTextWriterWriteElement(project_writer, "nature", "com.st.stm32cube.ide.mcu.MCURootProjectNature");
+    xmlTextWriterWriteElement(project_writer, (xmlChar*)"nature", (xmlChar*)"com.st.stm32cube.ide.mcu.MCUProjectNature");
+    xmlTextWriterWriteElement(project_writer, (xmlChar*)"nature", (xmlChar*)"com.st.stm32cube.ide.mcu.MCUCubeProjectNature");
+    xmlTextWriterWriteElement(project_writer, (xmlChar*)"nature", (xmlChar*)"com.st.stm32cube.ide.mcu.MCUCubeIdeServicesRevAev2ProjectNature");
+    xmlTextWriterWriteElement(project_writer, (xmlChar*)"nature", (xmlChar*)"com.st.stm32cube.ide.mcu.MCUAdvancedStructureProjectNature");
+    xmlTextWriterWriteElement(project_writer, (xmlChar*)"nature", (xmlChar*)"com.st.stm32cube.ide.mcu.MCUEndUserDisabledTrustZoneProjectNature");
+    xmlTextWriterWriteElement(project_writer, (xmlChar*)"nature", (xmlChar*)"com.st.stm32cube.ide.mcu.MCUSingleCpuProjectNature");
+    xmlTextWriterWriteElement(project_writer, (xmlChar*)"nature", (xmlChar*)"com.st.stm32cube.ide.mcu.MCURootProjectNature");
 }
 
 
