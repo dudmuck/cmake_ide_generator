@@ -32,7 +32,7 @@ Projects would create directly if source cmake project uses gcc, and IDE also us
 * [Eclipse Embedded CDT](https://projects.eclipse.org/projects/iot.embed-cdt/downloads)
 * Texas Instruments [Code Composer Studio (CCS)](https://www.ti.com/tool/CCSTUDIO)
 * NXP [MCUXpresso](https://www.nxp.com/design/software/development-software/mcuxpresso-software-and-tools-/mcuxpresso-integrated-development-environment-ide:MCUXpresso-IDE)
-* Renesas [e2 studio](https://www.renesas.com/tw/en/products/synergy/software/tools/e2-studio.html)
+* Renesas [e2 studio](https://www.renesas.com/us/en/products/software-tools/tools/ide/e2studio.html)
 * Nuvoton [NuEclipse](https://www.nuvoton.com/tool-and-software/software-development-tool/driver)
 * SiLabs [Simplicity Studio](https://www.silabs.com/products/development-tools/software/simplicity-studio)
 * more?  Cypress, Maxim, Nordic, Toshiba, etc.
