@@ -13,6 +13,7 @@
 
 #include "board-mcu-hack.h"
 #include "uvision.h"
+#include "xml.h"
 
 /*
  * ARM-ADS: Arm Developer Studio
@@ -435,7 +436,7 @@ target_done:
 
 int uvoptx_start(bool force, const char *Mcu)
 {
-    char str[384];
+    char str[512];
     int ret = -1;;
     char xml_filename[96];
 
@@ -887,51 +888,6 @@ int parse_linker_script(const char *file_name)
 linker_script_done:
     fclose(fp);
     return ret;
-}
-
-char otherNodeType[16];
-
-typedef enum {
-    XML_NODE_TYPE_NONE = 0,
-    XML_NODE_TYPE_START_ELEMENT, // 1
-    XML_NODE_TYPE_ATTRIBUTE, // 2
-    XML_NODE_TYPE_TEXT, // 3
-    XML_NODE_TYPE_CDATA, // 4
-    XML_NODE_TYPE_ENTITY_REF, // 5
-    XML_NODE_TYPE_ENTITY_DECLARE, // 6
-    XML_NODE_TYPE_PI, // 7
-    XML_NODE_TYPE_COMMENT, // 8
-    XML_NODE_TYPE_DOC, // 9
-    XML_NODE_TYPE_DOCTYPE, // 10
-    XML_NODE_TYPE_DOC_FRAG, // 11
-    XML_NODE_TYPE_NOTATION, // 12
-    XML_NODE_TYPE_FOO, // 13
-    XML_NODE_TYPE_WHITE_SPACE, // 14
-    XML_NODE_TYPE_END_OF_ELEMENT, // 15
-    XML_NODE_TYPE_, // 16
-} xml_node_type_e;
-
-const char *nodeTypeToString(int nt)
-{
-    switch (nt) {
-        case XML_NODE_TYPE_START_ELEMENT: return "start-element";
-        case XML_NODE_TYPE_END_OF_ELEMENT: return "end-of-element";
-        case 2: return "attribute";
-        case XML_NODE_TYPE_TEXT: return "text-node";
-        case 4: return "CData-section";
-        case 5: return "entity-reference";
-        case 6: return "entity-declaration";
-        case 7: return "PI";
-        case XML_NODE_TYPE_COMMENT: return "comment";
-        case 9: return "the document";
-        case 10: return "DTD/Doctype";
-        case 11: return "document-fragment";
-        case 12: return "notation-node";
-        case XML_NODE_TYPE_WHITE_SPACE: return "whiteSpace";
-        default:
-            sprintf(otherNodeType, "<%d>", nt);
-            return otherNodeType;
-    }
 }
 
 typedef enum {

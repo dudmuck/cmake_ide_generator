@@ -148,6 +148,7 @@ void put_c_other_flags()
         put_id(parent_str, id_str);
         xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"id", (xmlChar*)id_str);
         xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"superClass", (xmlChar*)parent_str);
+        xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"useByScannerDiscovery", (xmlChar*)"false");
         xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"value", (xmlChar*)str);
         xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"valueType", (xmlChar*)"string");
         xmlTextWriterEndElement(cproject_writer); // option 

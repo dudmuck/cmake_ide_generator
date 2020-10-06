@@ -968,6 +968,7 @@ void put_cconfiguration(bool debugBuild, instance_t *instance)
             put_id(parent_str, id_str);
             xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"id", (xmlChar*)id_str);
             xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"superClass", (xmlChar*)parent_str);
+            xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"useByScannerDiscovery", (xmlChar*)"false");
             xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"value", (xmlChar*)"true");
             xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"valueType", (xmlChar*)"boolean");
             xmlTextWriterEndElement(cproject_writer); // option 
@@ -1012,6 +1013,7 @@ void put_cconfiguration(bool debugBuild, instance_t *instance)
             put_id(parent_str, id_str);
             xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"id", (xmlChar*)id_str);
             xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"superClass", (xmlChar*)parent_str);
+            xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"useByScannerDiscovery", (xmlChar*)"false");
             xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"value", (xmlChar*)"true");
             xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"valueType", (xmlChar*)"boolean");
             xmlTextWriterEndElement(cproject_writer); // option 
@@ -1029,6 +1031,7 @@ void put_cconfiguration(bool debugBuild, instance_t *instance)
             put_id(parent_str, id_str);
             xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"id", (xmlChar*)id_str);
             xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"superClass", (xmlChar*)parent_str);
+            xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"useByScannerDiscovery", (xmlChar*)"false");
             xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"value", (xmlChar*)"true");
             xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"valueType", (xmlChar*)"boolean");
             xmlTextWriterEndElement(cproject_writer); // option 

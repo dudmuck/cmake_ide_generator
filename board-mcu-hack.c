@@ -3,6 +3,7 @@
 #include <ctype.h>
 #include <sys/stat.h>
 #include <stdlib.h>
+#include <string.h>
 #include <json-c/json.h>
 
 #include "board-mcu-hack.h"
