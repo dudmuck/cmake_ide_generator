@@ -1,5 +1,25 @@
 #include <stdio.h>
+#include <libxml/encoding.h>
 #include "xml.h"
+
+const xmlChar * const storageModule = (xmlChar*)"storageModule";
+const xmlChar * const autodiscovery = (xmlChar*)"autodiscovery";
+const xmlChar * const enabled = (xmlChar*)"enabled";
+const xmlChar * const moduleId = (xmlChar*)"moduleId";
+const xmlChar * const nature = (xmlChar*)"nature";
+const xmlChar * const useByScannerDiscovery = (xmlChar*)"useByScannerDiscovery";
+const xmlChar * const superClass = (xmlChar*)"superClass";
+const xmlChar * const IS_VALUE_EMPTY = (xmlChar*)"IS_VALUE_EMPTY";
+const xmlChar * const IS_BUILTIN_EMPTY = (xmlChar*)"IS_BUILTIN_EMPTY";
+const xmlChar * const option = (xmlChar*)"option";
+const xmlChar * const id = (xmlChar*)"id";
+const xmlChar * const valueType = (xmlChar*)"valueType";
+const xmlChar * const name = (xmlChar*)"name";
+const xmlChar * const value = (xmlChar*)"value";
+const xmlChar * const enumerated = (xmlChar*)"enumerated";
+
+
+
 
 char otherNodeType[16];
 

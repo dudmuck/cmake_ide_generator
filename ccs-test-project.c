@@ -54,30 +54,30 @@ char build_command_name[96];
 
 static int processNode(xmlTextReaderPtr reader)
 {
-    const char *name, *value;
+    const char *name_in, *value_in;
     int depth, nodeType = xmlTextReaderNodeType(reader);
     int ret = 0;
     if (nodeType == XML_NODE_TYPE_WHITE_SPACE)
         return 0;   // white space
 
-    name = (char*)xmlTextReaderConstName(reader);
+    name_in = (char*)xmlTextReaderConstName(reader);
     depth = xmlTextReaderDepth(reader);
 
     printf("depth%d %s name:%s isEmpty:%d hasValue%d", 
 	    depth,
 	    nodeTypeToString(nodeType),
-	    name,
+	    name_in,
 	    xmlTextReaderIsEmptyElement(reader),
 	    xmlTextReaderHasValue(reader)
     );
 
-    value = (char*)xmlTextReaderConstValue(reader);
-    printf(" %s ", value);
+    value_in = (char*)xmlTextReaderConstValue(reader);
+    printf(" %s ", value_in);
 
     if (nodeType == XML_NODE_TYPE_START_ELEMENT) {
         switch (depth) {
             case 0:
-                if (strcmp(name, "projectDescription") != 0) {
+                if (strcmp(name_in, "projectDescription") != 0) {
                     fprintf(stderr, ".project not projectDescription ");
                     ret = -1;
                 } else
@@ -89,76 +89,76 @@ static int processNode(xmlTextReaderPtr reader)
                     ret = -1;
                     break;
                 }
-                if (strcmp("name", name) == 0) {
+                if (strcmp("name", name_in) == 0) {
                     project_state[1] = PROJECT_STATE_NAME;
                     project_has.bits.name = 1;
-                } else if (strcmp("comment", name) == 0) {
+                } else if (strcmp("comment", name_in) == 0) {
                     project_has.bits.comment = 1;
-                } else if (strcmp("projects", name) == 0) {
+                } else if (strcmp("projects", name_in) == 0) {
                     project_has.bits.projects = 1;
-                } else if (strcmp("buildSpec", name) == 0) {
+                } else if (strcmp("buildSpec", name_in) == 0) {
                     project_state[1] = PROJECT_STATE_BUILDSPEC;
-                } else if (strcmp("natures", name) == 0) {
+                } else if (strcmp("natures", name_in) == 0) {
                     project_state[1] = PROJECT_STATE_NATURES;
-                } else if (strcmp("linkedResources", name) == 0) {
+                } else if (strcmp("linkedResources", name_in) == 0) {
                     project_state[1] = PROJECT_STATE_LINKEDRESOURCES;
                 } else {
-                    printf("\e[31m.project line %d unknown element %s\e[0m ", __LINE__, name);
+                    printf("\e[31m.project line %d unknown element %s\e[0m ", __LINE__, name_in);
                     ret = -1;
                 }
                 break;
             case 2:
                 if (project_state[1] == PROJECT_STATE_BUILDSPEC) {
-                    if (strcmp("buildCommand", name) == 0) {
+                    if (strcmp("buildCommand", name_in) == 0) {
                         project_state[2] = PROJECT_STATE_BUILDCOMMAND;
                     } else {
-                        printf("\e[31m.project line %d @depth2 buildSpec unknown element %s\e[0m ", __LINE__, name);
+                        printf("\e[31m.project line %d @depth2 buildSpec unknown element %s\e[0m ", __LINE__, name_in);
                         ret = -1;
                     }
                 } else if (project_state[1] == PROJECT_STATE_NAME) {
-                    printf(".project @depth2 PROJECT_STATE_NAME name=%s ", name);
+                    printf(".project @depth2 PROJECT_STATE_NAME name=%s ", name_in);
                 } else if (project_state[1] == PROJECT_STATE_LINKEDRESOURCES) {
-                    if (strcmp("link", name) == 0) {
+                    if (strcmp("link", name_in) == 0) {
                         project_state[2] = PROJECT_STATE_LINKEDRESOURCES_LINK;
                     } else {
-                        printf("\e[31m linked resources %s\[0m ", name);
+                        printf("\e[31m linked resources %s\[0m ", name_in);
                         ret = -1;
                     }
                 } else if (project_state[1] == PROJECT_STATE_NATURES) {
-                    if (strcmp("nature", name) == 0) {
+                    if (strcmp("nature", name_in) == 0) {
                         project_state[2] = PROJECT_STATE_NATURE;
                     } else {
-                        printf("\e[31m.project line %d @depth2 natures unknown element %s\e[0m ", __LINE__, name);
+                        printf("\e[31m.project line %d @depth2 natures unknown element %s\e[0m ", __LINE__, name_in);
                         ret = -1;
                     }
                 } else {
-                    printf(".project line:%d @depth2 depth_state[1]=%d name=%s ", __LINE__, project_state[1], name);
+                    printf(".project line:%d @depth2 depth_state[1]=%d name=%s ", __LINE__, project_state[1], name_in);
                     ret = -1;
                 }
                 break;
             case 3:
                 if (project_state[2] == PROJECT_STATE_BUILDCOMMAND) {
-                    if (strcmp(name, "name") == 0)
+                    if (strcmp(name_in, "name") == 0)
                         project_state[3] = PROJECT_STATE_BUILDCOMMAND_NAME;
-                    else if (strcmp(name, "triggers") == 0)
+                    else if (strcmp(name_in, "triggers") == 0)
                         project_state[3] = PROJECT_STATE_BUILDCOMMAND_TRIGGERS;
-                    else if (strcmp(name, "arguments") == 0)
+                    else if (strcmp(name_in, "arguments") == 0)
                         project_state[3] = PROJECT_STATE_BUILDCOMMAND_ARGUMENTS;
                     else {
-                        printf("PROJECT_STATE_BUILDCOMMAND unknown name=%s ", name);
+                        printf("PROJECT_STATE_BUILDCOMMAND unknown name=%s ", name_in);
                         ret = -1;
                     }
                 } else if (project_state[2] == PROJECT_STATE_LINKEDRESOURCES_LINK) {
-                    if (strcmp(name, "name") == 0)
+                    if (strcmp(name_in, "name") == 0)
                         project_state[3] = PROJECT_STATE_LINKEDRESOURCES_LINK_NAME;
-                    else if (strcmp(name, "type") == 0)
+                    else if (strcmp(name_in, "type") == 0)
                         project_state[3] = PROJECT_STATE_LINKEDRESOURCES_LINK_TYPE;
-                    else if (strcmp(name, "locationURI") == 0)
+                    else if (strcmp(name_in, "locationURI") == 0)
                         project_state[3] = PROJECT_STATE_LINKEDRESOURCES_LINK_LOCATIONURI;
-                    else if (strcmp(name, "location") == 0)
+                    else if (strcmp(name_in, "location") == 0)
                         project_state[3] = PROJECT_STATE_LINKEDRESOURCES_LINK_LOCATION;
                     else
-                        printf("\e[31mline %d LINK name=%s\e[0m ", __LINE__, name);
+                        printf("\e[31mline %d LINK name=%s\e[0m ", __LINE__, name_in);
                 } else {
                     printf("\e[31m.project line %d @depth3 depth_state[2]=%d\e[0m ", __LINE__, project_state[2]);
                     ret = -1;
@@ -170,7 +170,7 @@ static int processNode(xmlTextReaderPtr reader)
     } // ..if (nodeType == XML_NODE_TYPE_START_ELEMENT)
     else if (nodeType == XML_NODE_TYPE_END_OF_ELEMENT) {
         project_state[depth] = PROJECT_STATE_NONE;
-        if (strcmp("buildCommand", name) == 0) {
+        if (strcmp("buildCommand", name_in) == 0) {
             build_command_name[0] = 0;
         }
     } else if (nodeType == XML_NODE_TYPE_TEXT) {
@@ -178,56 +178,56 @@ static int processNode(xmlTextReaderPtr reader)
             case PROJECT_STATE_NAME:
                 break;
             case PROJECT_STATE_BUILDCOMMAND_NAME:
-                printf("PROJECT_STATE_BUILDCOMMAND_NAME %s ", value);
-                strcpy(build_command_name, value);
-                if (strcmp(value, genmakebuilder) == 0)
+                printf("PROJECT_STATE_BUILDCOMMAND_NAME %s ", value_in);
+                strcpy(build_command_name, value_in);
+                if (strcmp(value_in, genmakebuilder) == 0)
                     project_has.bits.genmakebuilder = 1;
-                else if (strcmp(value, ScannerConfigBuilder) == 0)
+                else if (strcmp(value_in, ScannerConfigBuilder) == 0)
                     project_has.bits.ScannerConfigBuilder = 1;
                 break;
             case PROJECT_STATE_BUILDCOMMAND_TRIGGERS:
                 /*if (strcmp(build_command_name, genmakebuilder) == 0) {
-                    if (strcmp(value, genmakebuilder_triggers) != 0) {
+                    if (strcmp(value_in, genmakebuilder_triggers) != 0) {
                         fprintf(stderr, "line %d %s expecting triggers %s ", __LINE__, build_command_name, genmakebuilder_triggers);
                         ret = -1;
                     }
                 } else*/ if (strcmp(build_command_name, ScannerConfigBuilder) == 0) {
-                    if (strcmp(value, ScannerConfigBuilder_triggers) != 0) {
+                    if (strcmp(value_in, ScannerConfigBuilder_triggers) != 0) {
                         fprintf(stderr, "line %d %s expecting triggers %s ", __LINE__, build_command_name, ScannerConfigBuilder);
                         ret = -1;
                     }
                 }
                 break;
             case PROJECT_STATE_NATURE:
-                if (strcmp(cnature, value) == 0)
+                if (strcmp(cnature, value_in) == 0)
                     project_has.bits.cnature = 1;
-                else if (strcmp(ccnature, value) == 0) {
+                else if (strcmp(ccnature, value_in) == 0) {
                     /* ccnature optional */
-                } else if (strcmp(managedBuildNature, value) == 0)
+                } else if (strcmp(managedBuildNature, value_in) == 0)
                     project_has.bits.managedBuildNature = 1;
-                else if (strcmp(ScannerConfigNature, value) == 0)
+                else if (strcmp(ScannerConfigNature, value_in) == 0)
                     project_has.bits.ScannerConfigNature = 1;
-                else if (strcmp(ccsNature, value) == 0)
+                else if (strcmp(ccsNature, value_in) == 0)
                     project_has.bits.ccsNature = 1;
                 else {
-                    fprintf(stderr, "\e[31mline %d unknown nature %s\e[0m\r\n", __LINE__, value);
+                    fprintf(stderr, "\e[31mline %d unknown nature %s\e[0m\r\n", __LINE__, value_in);
                     ret = -1;
                 }
                 break;
             case PROJECT_STATE_LINKEDRESOURCES_LINK_NAME:
                 break;
             case PROJECT_STATE_LINKEDRESOURCES_LINK_TYPE:
-                if (strcmp(value, "2") == 0) {
+                if (strcmp(value_in, "2") == 0) {
                     /* folder */
-                } else if (strcmp(value, "1") == 0) {
+                } else if (strcmp(value_in, "1") == 0) {
                     /* file */
                 } else {
-                    printf("\e[31mline %d unknown link type %s\e[0m ", __LINE__, value);
+                    printf("\e[31mline %d unknown link type %s\e[0m ", __LINE__, value_in);
                 }
                 break;
             case PROJECT_STATE_LINKEDRESOURCES_LINK_LOCATIONURI:
-                if (strcmp(value, "virtual:/virtual") != 0) {
-                    printf("\e[31munkown locationURI %s\e[0m ", value);
+                if (strcmp(value_in, "virtual:/virtual") != 0) {
+                    printf("\e[31munkown locationURI %s\e[0m ", value_in);
                     ret = -1;
                 }
                 break;
@@ -235,7 +235,7 @@ static int processNode(xmlTextReaderPtr reader)
                 /* filename of project source file */
                 break;
             default:
-                printf("\e[31mline %d text-parent-state:%d %s\e[0m ", __LINE__, project_state[depth-1], value);
+                printf("\e[31mline %d text-parent-state:%d %s\e[0m ", __LINE__, project_state[depth-1], value_in);
                 ret = -1;
                 break;
         } // ..switch (project_state[depth-1])
@@ -304,3 +304,4 @@ int main(int argc, char *argv[])
     else
         return test_cproject();
 }
+

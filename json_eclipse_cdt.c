@@ -16,6 +16,14 @@ const char * const reply_directory = ".cmake/api/v1/reply";
 struct node_s *defines_list;
 struct node_s *includes_list;
 
+void put_listOptionValue(xmlTextWriterPtr w, bool built_in, const char *vv)
+{
+    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"listOptionValue");
+    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"builtIn", built_in ? (xmlChar*)"true" : (xmlChar*)"false");
+    xmlTextWriterWriteAttribute(cproject_writer, value, (xmlChar*)vv);
+    xmlTextWriterEndElement(cproject_writer); // listOptionValue 
+}
+
 void path_copy(char *dest, const char *src, size_t dest_size)
 {
     int dest_idx = 0;
@@ -43,7 +51,7 @@ void path_copy(char *dest, const char *src, size_t dest_size)
     }
 }
 
-static void save_compile_args(const char *fragment)
+static void save_flags(const char *fragment, struct node_s **dest)
 {
     char str[256];
     char *token;
@@ -54,7 +62,7 @@ static void save_compile_args(const char *fragment)
     while (token != NULL) {
         bool ok_for_xml = true;
         int n, toklen = strlen(token);
-        struct node_s **node = &from_codemodel.compile_fragment_list;
+        struct node_s **node = dest;
         for (n = 0; n < toklen; n++) {
             if (token[n] < ' ') {
                 /* strtok() could be broken in windows */
@@ -108,9 +116,18 @@ int parse_target_file_to_linked_resources(const char *source_path, const char *j
     ret = fread(buffer, st.st_size, 1, fp);
 #endif
 
+    /* ? trailing garbage ? */
+    for (unsigned n = st.st_size; n > 0; n--) {
+        if (buffer[n] == '}')
+            break;
+        else
+            buffer[n] = 0;
+    }
+
     parsed_json = json_tokener_parse(buffer);
     if (parsed_json == NULL) {
-        printf("cannot parse json in %s\r\n", full_path);
+        printf("%s\n", buffer);
+        printf("cannot parse json in %s (%d bytes) st_size:%ld\r\n", full_path, (int)strlen(buffer), st.st_size);
         ret = -1;
         goto target_done;
     }
@@ -137,7 +154,7 @@ int parse_target_file_to_linked_resources(const char *source_path, const char *j
     xmlTextWriterStartElement(project_writer, (xmlChar*)"link");
     if (json_object_object_get_ex(parsed_json, "name", &name_jobj)) {
         sprintf(target_name, "[%s]", json_object_get_string(name_jobj));
-        xmlTextWriterWriteElement(project_writer, (xmlChar*)"name", (xmlChar*)target_name);
+        xmlTextWriterWriteElement(project_writer, name, (xmlChar*)target_name);
         if (strcmp("EXECUTABLE", targetType) == 0) {
             strncpy(from_codemodel.artifactName, json_object_get_string(name_jobj), sizeof(from_codemodel.artifactName));
         }
@@ -169,7 +186,7 @@ int parse_target_file_to_linked_resources(const char *source_path, const char *j
             strcpy(str, target_name);
             strcat(str, "/");
             strcat(str, basename(copy));
-            xmlTextWriterWriteElement(project_writer, (xmlChar*)"name", (xmlChar*)str);
+            xmlTextWriterWriteElement(project_writer, name, (xmlChar*)str);
             xmlTextWriterWriteElement(project_writer, (xmlChar*)"type", (xmlChar*)"1");
             strcpy(str, source_path);
             strcat(str, "/");
@@ -277,7 +294,7 @@ int parse_target_file_to_linked_resources(const char *source_path, const char *j
             struct json_object *compileCommandFragment_jobj = json_object_array_get_idx(compileCommandFragments_jobj, n);
             if (json_object_object_get_ex(compileCommandFragment_jobj , "fragment", &fragment_jobj)) {
                 const char *fragment = json_object_get_string(fragment_jobj);
-                save_compile_args(fragment);
+                save_flags(fragment, &from_codemodel.compile_fragment_list);
             } else
                 printf("exe no fragment\r\n");
         }
@@ -300,31 +317,7 @@ int parse_target_file_to_linked_resources(const char *source_path, const char *j
                     json_object_object_get_ex(commandFragment_jobj, "fragment", &fragment_jobj);
                     fragment = json_object_get_string(fragment_jobj);
                     if (strcmp(role, "flags") == 0) {
-                        unsigned len = 0;
-                        const char *ptr = strstr(fragment, "-T");
-                        if (ptr != NULL)
-                            path_copy(from_codemodel.linkerScript, ptr + 2, sizeof(from_codemodel.linkerScript));
-
-                        /* save --specs= */
-                        for (ptr = fragment; (ptr = strstr(ptr, "--specs")) != NULL; ptr += 7) {
-                            struct node_s **node;
-                            /* count length until next space */
-                            for (len = 0; ptr[len] != ' '; len++)
-                                ;
-
-                            node = &from_codemodel.specs_list;
-                            if (from_codemodel.specs_list) {
-                                while ((*node)->next) {
-                                    node = &(*node)->next;
-                                }
-                                node = &(*node)->next;
-                            }
-                            (*node) = malloc(sizeof(struct node_s));
-                            (*node)->next = NULL;
-                            (*node)->str = malloc(len+1);
-                            strncpy((*node)->str, ptr, len);
-                            (*node)->str[len] = 0;
-                        }
+                        save_flags(fragment, &from_codemodel.linker_fragment_list);
                     } else if (strcmp(role, "libraries") == 0) {
                         /* TODO add extra link libraries ? */
                     }
@@ -401,12 +394,12 @@ int parse_codemodel_to_eclipse_project(const char *jsonFileName)
         struct json_object *parentIndex;
         json_object_object_get_ex(project, "parentIndex", &parentIndex);
         if (parentIndex == NULL) {
-            const char *name;
+            const char *json_name;
             struct json_object *name_jobj;
             json_object_object_get_ex(project, "name", &name_jobj);
-            name = json_object_get_string(name_jobj);
-            strncpy(from_codemodel.project_name, name, sizeof(from_codemodel.project_name));
-            xmlTextWriterWriteElement(project_writer, (xmlChar*)"name", (xmlChar*)name);
+            json_name = json_object_get_string(name_jobj);
+            strncpy(from_codemodel.project_name, json_name, sizeof(from_codemodel.project_name));
+            xmlTextWriterWriteElement(project_writer, name, (xmlChar*)json_name);
         }
     }
 
@@ -416,23 +409,26 @@ int parse_codemodel_to_eclipse_project(const char *jsonFileName)
 
     xmlTextWriterStartElement(project_writer, (xmlChar*)"buildSpec");
     xmlTextWriterStartElement(project_writer, (xmlChar*)"buildCommand");
-    xmlTextWriterWriteElement(project_writer, (xmlChar*)"name", (xmlChar*)"org.eclipse.cdt.managedbuilder.core.genmakebuilder");
-    xmlTextWriterWriteElement(project_writer, (xmlChar*)"triggers", (xmlChar*)"clean,full,incremental,");
+    xmlTextWriterWriteElement(project_writer, name, (xmlChar*)"org.eclipse.cdt.managedbuilder.core.genmakebuilder");
+    if (GENMAKEBUILDER_TRIGGERS)
+        xmlTextWriterWriteElement(project_writer, (xmlChar*)"triggers", (xmlChar*)GENMAKEBUILDER_TRIGGERS); //was "clean,full,incremental," 
+    if (GENMAKEBUILDER_ARGUMENTS) {
+        xmlTextWriterWriteElement(project_writer, (xmlChar*)"arguments", (xmlChar*)GENMAKEBUILDER_ARGUMENTS);
+    }
     xmlTextWriterEndElement(project_writer); // buildCommand
     xmlTextWriterStartElement(project_writer, (xmlChar*)"buildCommand");
-    xmlTextWriterWriteElement(project_writer, (xmlChar*)"name", (xmlChar*)"org.eclipse.cdt.managedbuilder.core.ScannerConfigBuilder");
-    put_ScannerConfigBuilder_triggers();
-    xmlTextWriterStartElement(project_writer, (xmlChar*)"arguments");
-    xmlTextWriterEndElement(project_writer); // arguments
+    xmlTextWriterWriteElement(project_writer, name, (xmlChar*)"org.eclipse.cdt.managedbuilder.core.ScannerConfigBuilder");
+    if (SCANNERCONFIGBUILDER_TRIGGERS) {
+        xmlTextWriterWriteElement(project_writer, (xmlChar*)"triggers", (xmlChar*)SCANNERCONFIGBUILDER_TRIGGERS);
+    }
+    if (SCANNERCONFIGBUILDER_ARGUMENTS) {
+        xmlTextWriterWriteElement(project_writer, (xmlChar*)"arguments", (xmlChar*)SCANNERCONFIGBUILDER_ARGUMENTS);
+    }
     xmlTextWriterEndElement(project_writer); // buildCommand
     xmlTextWriterEndElement(project_writer); // buildSpec
 
     xmlTextWriterStartElement(project_writer, (xmlChar*)"natures");
     write_natures();
-    xmlTextWriterWriteElement(project_writer, (xmlChar*)"nature", (xmlChar*)"org.eclipse.cdt.managedbuilder.core.managedBuildNature");
-    xmlTextWriterWriteElement(project_writer, (xmlChar*)"nature", (xmlChar*)"org.eclipse.cdt.managedbuilder.core.ScannerConfigNature");
-    xmlTextWriterWriteElement(project_writer, (xmlChar*)"nature", (xmlChar*)"org.eclipse.cdt.core.ccnature");
-    xmlTextWriterWriteElement(project_writer, (xmlChar*)"nature", (xmlChar*)"org.eclipse.cdt.core.cnature");
     xmlTextWriterEndElement(project_writer); // natures
 
     xmlTextWriterStartElement(project_writer, (xmlChar*)"linkedResources");
@@ -618,8 +614,8 @@ int project_start(bool force)
 
     includes_list = NULL;
     defines_list = NULL;
-    from_codemodel.specs_list = NULL;
     from_codemodel.compile_fragment_list = NULL;
+    from_codemodel.linker_fragment_list = NULL;
 
     ret = -1;
     while ((ep = readdir (dp))) {
@@ -644,7 +640,7 @@ int project_start(bool force)
         printf("cannot create xml writer\r\n");
         return -1;
     }
-    ret = xmlTextWriterStartDocument(project_writer, NULL, "UTF-8", "no");
+    ret = xmlTextWriterStartDocument(project_writer, NULL, "UTF-8", NULL);
     if (ret < 0) {
         printf("Error at xmlTextWriterStartDocument\n");
         return -1;
@@ -703,20 +699,13 @@ void put_id(const char *in, char *out)
 
 void put_cconfiguration(bool debugBuild, instance_t *instance)
 {
-    const char * const artifactExtension = "elf";
-    char config_gnu_cross_exe_parent[96];
-    char parent_str[96];
-    char id_str[128];
+    char cconfiguration_superClass[96];
     char str[256];
-    char strb[16];
     char Board[64], Mcu[64];
-    const char *build;
     const char *Build;
     if (debugBuild) {
-        build = "debug";
         Build = "Debug";
     } else {
-        build = "release";
         Build = "Release";
     }
     
@@ -726,498 +715,51 @@ void put_cconfiguration(bool debugBuild, instance_t *instance)
 
     xmlTextWriterStartElement(cproject_writer, (xmlChar*)"cconfiguration");
 
-    sprintf(str, CONFIGURATION_EXE_SUPERCLASS, TITLE, build);
-    strcpy(config_gnu_cross_exe_parent, str);
-    strcat(str, ".");
-    get_us(strb);
-    strcat(str, strb);
-    strcpy(instance->config_gnu_cross_exe, str);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"id", (xmlChar*)str);
+    translate_board_mcu(from_cache.board, Board, Mcu);
 
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"storageModule");
+    if (get_cconfiguration_id(debugBuild, Mcu, str, cconfiguration_superClass)) {
+        printf("get_cconfiguration_id() failed\n");
+        return;
+    }
+    strcpy(instance->config_gnu_cross_exe, str);
+    xmlTextWriterWriteAttribute(cproject_writer, id, (xmlChar*)str);
+
+    xmlTextWriterStartElement(cproject_writer, storageModule);
     xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"buildSystemId", (xmlChar*)"org.eclipse.cdt.managedbuilder.core.configurationDataProvider");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"id", (xmlChar*)instance->config_gnu_cross_exe);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"moduleId", (xmlChar*)"org.eclipse.cdt.core.settings");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"name", (xmlChar*)Build);
+    xmlTextWriterWriteAttribute(cproject_writer, id, (xmlChar*)instance->config_gnu_cross_exe);
+    xmlTextWriterWriteAttribute(cproject_writer, moduleId, (xmlChar*)"org.eclipse.cdt.core.settings");
+    xmlTextWriterWriteAttribute(cproject_writer, name, (xmlChar*)Build);
     xmlTextWriterStartElement(cproject_writer, (xmlChar*)"externalSettings");
     xmlTextWriterEndElement(cproject_writer); // externalSettings
     xmlTextWriterStartElement(cproject_writer, (xmlChar*)"extensions");
 
     xmlTextWriterStartElement(cproject_writer, (xmlChar*)"extension");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"id", (xmlChar*)"org.eclipse.cdt.core.ELF");
+    xmlTextWriterWriteAttribute(cproject_writer, id, (xmlChar*)BINARY_PARSER);
     xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"point", (xmlChar*)"org.eclipse.cdt.core.BinaryParser");
     xmlTextWriterEndElement(cproject_writer); // extension
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"extension");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"id", (xmlChar*)"org.eclipse.cdt.core.GASErrorParser");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"point", (xmlChar*)"org.eclipse.cdt.core.ErrorParser");
-    xmlTextWriterEndElement(cproject_writer); // extension
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"extension");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"id", (xmlChar*)"org.eclipse.cdt.core.GmakeErrorParser");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"point", (xmlChar*)"org.eclipse.cdt.core.ErrorParser");
-    xmlTextWriterEndElement(cproject_writer); // extension
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"extension");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"id", (xmlChar*)"org.eclipse.cdt.core.GLDErrorParser");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"point", (xmlChar*)"org.eclipse.cdt.core.ErrorParser");
-    xmlTextWriterEndElement(cproject_writer); // extension
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"extension");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"id", (xmlChar*)"org.eclipse.cdt.core.CWDLocator");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"point", (xmlChar*)"org.eclipse.cdt.core.ErrorParser");
-    xmlTextWriterEndElement(cproject_writer); // extension
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"extension");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"id", (xmlChar*)"org.eclipse.cdt.core.GCCErrorParser");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"point", (xmlChar*)"org.eclipse.cdt.core.ErrorParser");
-    xmlTextWriterEndElement(cproject_writer); // extension
+
+    for (unsigned n = 0; ERROR_PARSERS[n] != NULL; n++) {
+        xmlTextWriterStartElement(cproject_writer, (xmlChar*)"extension");
+        xmlTextWriterWriteAttribute(cproject_writer, id, (xmlChar*)ERROR_PARSERS[n]);
+        xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"point", (xmlChar*)"org.eclipse.cdt.core.ErrorParser");
+        xmlTextWriterEndElement(cproject_writer); // extension
+    }
+
     xmlTextWriterEndElement(cproject_writer); // extensions
     xmlTextWriterEndElement(cproject_writer); // storageModule
 
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"storageModule");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"moduleId", (xmlChar*)"cdtBuildSystem");
+    xmlTextWriterStartElement(cproject_writer, storageModule);
+    xmlTextWriterWriteAttribute(cproject_writer, moduleId, (xmlChar*)"cdtBuildSystem");
     xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"version", (xmlChar*)"4.0.0");
 
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"configuration");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"artifactExtension", (xmlChar*)artifactExtension);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"artifactName", (xmlChar*)from_codemodel.artifactName);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"buildArtefactType", (xmlChar*)"org.eclipse.cdt.build.core.buildArtefactType.exe" );
-    strcpy(str, "org.eclipse.cdt.build.core.buildArtefactType=org.eclipse.cdt.build.core.buildArtefactType.exe,org.eclipse.cdt.build.core.buildType=org.eclipse.cdt.build.core.buildType.");
-    strcat(str, build);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"buildProperties", (xmlChar*)str);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"cleanCommand", (xmlChar*)"rm -rf");  // on windows too?
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"description", (xmlChar*)"");
-    /* stm32cubeIDE doesnt like "errorParsers" */
-    //xmlTextWriterWriteAttribute(cproject_writer, "errorParsers", "org.eclipse.cdt.core.GASErrorParser;org.eclipse.cdt.core.GmakeErrorParser;org.eclipse.cdt.core.GLDErrorParser;org.eclipse.cdt.core.CWDLocator;org.eclipse.cdt.core.GCCErrorParser");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"id", (xmlChar*)instance->config_gnu_cross_exe);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"name", (xmlChar*)Build);
-    //xmlTextWriterWriteAttribute(cproject_writer, "optionalBuildProperties", "org.eclipse.cdt.docker.launcher.containerbuild.property.volumes=,org.eclipse.cdt.docker.launcher.containerbuild.property.selectedvolumes=");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"parent", (xmlChar*)config_gnu_cross_exe_parent);
-
-    put_post_build_steps(artifactExtension);
-
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"folderInfo");
-    strcpy(str, instance->config_gnu_cross_exe);
-    strcat(str, ".");   // what is this trailing dot for?
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"id", (xmlChar*)str);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"name", (xmlChar*)"/");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"resourcePath", (xmlChar*)"");
-
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"toolChain");
-    sprintf(parent_str, TOOLCHAIN_SUPERCLASS, TITLE, build);
-    put_id(parent_str, id_str);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"name", (xmlChar*)TOOLCHAIN_NAME);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"id", (xmlChar*)id_str);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"superClass", (xmlChar*)parent_str);
-
-    put_toolchain_type();
-    put_toolchain_version();
-
-    translate_board_mcu(from_cache.board, Board, Mcu);
-
-    if (Mcu[0] != 0) {
-        xmlTextWriterStartElement(cproject_writer, (xmlChar*)"option");
-        sprintf(parent_str, OPTION_MCU_SUPERCLASS, TITLE);
-        put_id(parent_str, id_str);
-        xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"id", (xmlChar*)id_str);
-        xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"name", (xmlChar*)"Mcu");
-        xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"superClass", (xmlChar*)parent_str);
-        xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"value", (xmlChar*)Mcu);
-        xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"valueType", (xmlChar*)"string");
-        xmlTextWriterEndElement(cproject_writer); // option
-    } else
-        printf("Warning: no Mcu defined\r\n");
-
-    put_target_id();
-
-    if (Board[0] != 0) {
-        xmlTextWriterStartElement(cproject_writer, (xmlChar*)"option");
-        sprintf(parent_str, OPTION_BOARD_SUPERCLASS, TITLE);
-        put_id(parent_str, id_str);
-        xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"id", (xmlChar*)id_str);
-        xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"name", (xmlChar*)"Board");
-        xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"superClass", (xmlChar*)parent_str);
-        xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"value", (xmlChar*)Board);
-        xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"valueType", (xmlChar*)"string");
-        xmlTextWriterEndElement(cproject_writer); // option
-    } else
-        printf("Warning: no Board defined\r\n");
-
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"targetPlatform");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"archList", (xmlChar*)"all");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"binaryParser", (xmlChar*)"org.eclipse.cdt.core.ELF");
-    sprintf(parent_str, TARGET_PLATFORM_SUPERCLASS, TITLE);
-    put_id(parent_str, id_str);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"id", (xmlChar*)id_str);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"isAbstract", (xmlChar*)"false");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"osList", (xmlChar*)"all");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"superClass", (xmlChar*)parent_str);
-    xmlTextWriterEndElement(cproject_writer); // targetPlatform
-
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"builder");
-    strcpy(str, from_codemodel.buildPath);
-    strcat(str, "/");
-    strcat(str, Build);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"buildPath", (xmlChar*)str);
-    sprintf(parent_str, BUILDER_SUPERCLASS, TITLE);
-    put_id(parent_str, id_str);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"id", (xmlChar*)id_str);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"keepEnvironmentInBuildfile", (xmlChar*)"false");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"managedBuildOn", (xmlChar*)"true");
-    get_bulder_name(str, Build);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"name", (xmlChar*)str);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"parallelBuildOn", (xmlChar*)"true");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"parallelizationNumber", (xmlChar*)"optimal");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"superClass", (xmlChar*)parent_str);
-    xmlTextWriterEndElement(cproject_writer); // builder
-
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"tool");
-    sprintf(parent_str, TOOL_C_COMPILER_SUPERCLASS, TITLE);
-    put_id(parent_str, instance->tool_gnu_cross_c_compiler);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"id", (xmlChar*)instance->tool_gnu_cross_c_compiler);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"name", (xmlChar*)"MCU GCC Compiler");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"superClass", (xmlChar*)parent_str);
-
-    // -O
-    char optimization_level = 0;
-    for (struct node_s *my_list = from_codemodel.compile_fragment_list; my_list != NULL; my_list = my_list->next) {
-        if (my_list->taken)
-            continue;
-        if (strncmp("-O", my_list->str, 2) == 0) {
-            optimization_level = my_list->str[2];
-            my_list->taken = true;
-        }
+    if (put_configuration(debugBuild, instance, cconfiguration_superClass, Board, Mcu) < 0) {
+        printf("put_configuration() failed\n");
     }
 
-    if (optimization_level != 0) {
-        xmlTextWriterStartElement(cproject_writer, (xmlChar*)"option");
-        sprintf(parent_str, C_OPTIMIZATION_LEVEL_SUPERCLASS, TITLE);
-        put_id(parent_str, id_str);
-        xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"id", (xmlChar*)id_str);
-        xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"name", (xmlChar*)"Optimization Level");
-        xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"superClass", (xmlChar*)parent_str);
-        xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"useByScannerDiscovery", (xmlChar*)"false");
-
-        get_c_optimization_value(optimization_level, str);
-        if (str[0] != 0) {
-            xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"value", (xmlChar*)str);
-            xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"valueType", (xmlChar*)"enumerated");
-        }
-
-        xmlTextWriterEndElement(cproject_writer); // option 
-    }
-
-    // -g
-    char debugging_level = 0;
-    for (struct node_s *my_list = from_codemodel.compile_fragment_list; my_list != NULL; my_list = my_list->next) {
-        if (my_list->taken)
-            continue;
-        if (strncmp("-g", my_list->str, 2) == 0) {
-            debugging_level = my_list->str[2];
-            my_list->taken = true;
-        }
-    }
-
-    put_c_debug_level(debugging_level);
-
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"option");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"IS_BUILTIN_EMPTY", (xmlChar*)"false");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"IS_VALUE_EMPTY", (xmlChar*)"false");
-    strcpy(parent_str, C_DEFINED_SYMBOLS_SUPERCLASS);
-    put_id(parent_str, id_str);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"id", (xmlChar*)id_str);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"name", (xmlChar*)"Defined symbols (-D)");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"superClass", (xmlChar*)parent_str);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"useByScannerDiscovery", (xmlChar*)"false");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"valueType", (xmlChar*)"definedSymbols");
-    if (defines_list) {
-        struct node_s *my_list;
-        for (my_list = defines_list; my_list != NULL; my_list = my_list->next) {
-            xmlTextWriterStartElement(cproject_writer, (xmlChar*)"listOptionValue");
-            xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"builtIn", (xmlChar*)"false");
-            xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"value", (xmlChar*)my_list->str);
-            xmlTextWriterEndElement(cproject_writer); // listOptionValue 
-        }
-    }
-
-    xmlTextWriterEndElement(cproject_writer); // option 
-
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"option");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"IS_BUILTIN_EMPTY", (xmlChar*)"false");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"IS_VALUE_EMPTY", (xmlChar*)"false");
-    strcpy(parent_str, C_INCLUDE_PATHS_SUPERCLASS);
-    put_id(parent_str, id_str);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"id", (xmlChar*)id_str);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"superClass", (xmlChar*)parent_str);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"useByScannerDiscovery", (xmlChar*)"false");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"valueType", (xmlChar*)"includePath");
-    if (includes_list) {
-        struct node_s *my_list;
-        for (my_list = includes_list; my_list != NULL; my_list = my_list->next) {
-            xmlTextWriterStartElement(cproject_writer, (xmlChar*)"listOptionValue");
-            xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"builtIn", (xmlChar*)"false");
-            xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"value", (xmlChar*)my_list->str);
-            xmlTextWriterEndElement(cproject_writer); // listOptionValue 
-        }
-    }
-    xmlTextWriterEndElement(cproject_writer); // option 
-
-    // -fdata-sections
-    for (struct node_s *my_list = from_codemodel.compile_fragment_list; my_list != NULL; my_list = my_list->next) {
-        if (my_list->taken)
-            continue;
-        if (strcmp("-fdata-sections", my_list->str) == 0) {
-            xmlTextWriterStartElement(cproject_writer, (xmlChar*)"option");
-            sprintf(parent_str, FDATA_SECTIONS_SUPERCLASS, TITLE);
-            put_id(parent_str, id_str);
-            xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"id", (xmlChar*)id_str);
-            xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"superClass", (xmlChar*)parent_str);
-            xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"useByScannerDiscovery", (xmlChar*)"false");
-            xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"value", (xmlChar*)"true");
-            xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"valueType", (xmlChar*)"boolean");
-            xmlTextWriterEndElement(cproject_writer); // option 
-            my_list->taken = true;
-        }
-    }
-
-    // -std=foo
-    const char *dialect = NULL;
-    for (struct node_s *my_list = from_codemodel.compile_fragment_list; my_list != NULL; my_list = my_list->next) {
-        if (my_list->taken)
-            continue;
-        /* go thru all args, last one takes effect */
-        if (strncmp("-std=", my_list->str, 5) == 0) {
-            get_c_dialect_value_from_fragment(my_list->str, &dialect);
-
-            my_list->taken = true;
-        }
-    }
-
-    if (dialect) {
-        xmlTextWriterStartElement(cproject_writer, (xmlChar*)"option");
-        strcpy(parent_str, C_DIALECT_SUPERCLASS);
-        put_id(parent_str, id_str);
-        xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"id", (xmlChar*)id_str);
-        xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"superClass", (xmlChar*)parent_str);
-        xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"useByScannerDiscovery", (xmlChar*)"true");
-        strcpy(str, C_DIALECT_VALUE_PREFIX);
-        strcat(str, dialect);
-        xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"value", (xmlChar*)str);
-        xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"valueType", (xmlChar*)"enumerated");
-        xmlTextWriterEndElement(cproject_writer); // option 
-    }
-
-    // -pedantic
-    for (struct node_s *my_list = from_codemodel.compile_fragment_list; my_list != NULL; my_list = my_list->next) {
-        if (my_list->taken)
-            continue;
-        if (strcmp("-pedantic", my_list->str) == 0) {
-            xmlTextWriterStartElement(cproject_writer, (xmlChar*)"option");
-            strcpy(parent_str, C_PEDANTIC_SUPERCLASS);
-            put_id(parent_str, id_str);
-            xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"id", (xmlChar*)id_str);
-            xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"superClass", (xmlChar*)parent_str);
-            xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"useByScannerDiscovery", (xmlChar*)"false");
-            xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"value", (xmlChar*)"true");
-            xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"valueType", (xmlChar*)"boolean");
-            xmlTextWriterEndElement(cproject_writer); // option 
-            my_list->taken = true;
-        }
-    }
-
-    // -Wextra
-    for (struct node_s *my_list = from_codemodel.compile_fragment_list; my_list != NULL; my_list = my_list->next) {
-        if (my_list->taken)
-            continue;
-        if (strcmp("-Wextra", my_list->str) == 0) {
-            xmlTextWriterStartElement(cproject_writer, (xmlChar*)"option");
-            strcpy(parent_str, C_WARN_EXTRA_SUPERCLASS);
-            put_id(parent_str, id_str);
-            xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"id", (xmlChar*)id_str);
-            xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"superClass", (xmlChar*)parent_str);
-            xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"useByScannerDiscovery", (xmlChar*)"false");
-            xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"value", (xmlChar*)"true");
-            xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"valueType", (xmlChar*)"boolean");
-            xmlTextWriterEndElement(cproject_writer); // option 
-            my_list->taken = true;
-        }
-    }
-
-    // any -W -f -m not already added
-    put_c_other_flags();
-
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"inputType");
-    sprintf(parent_str, C_INPUT_C_SUPERCLASS, TITLE);
-    put_id(parent_str, instance->tool_gnu_cross_c_compiler_input);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"id", (xmlChar*)instance->tool_gnu_cross_c_compiler_input);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"superClass", (xmlChar*)parent_str);
-    xmlTextWriterEndElement(cproject_writer); // inputType
-
-    if (C_INPUT_S_SUPERCLASS != NULL) {
-        xmlTextWriterStartElement(cproject_writer, (xmlChar*)"inputType");
-        sprintf(parent_str, C_INPUT_S_SUPERCLASS, TITLE);
-        put_id(parent_str, id_str);
-        xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"id", (xmlChar*)id_str);
-        xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"superClass", (xmlChar*)parent_str);
-        xmlTextWriterEndElement(cproject_writer); // inputType
-    }
-
-    xmlTextWriterEndElement(cproject_writer); // tool  tool.gnu.cross.c.compiler
-
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"tool");
-    sprintf(parent_str, TOOL_CPP_COMPILER_SUPERCLASS, TITLE);
-    put_id(parent_str, id_str);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"id", (xmlChar*)id_str);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"name", (xmlChar*)"MCU G++ Compiler");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"superClass", (xmlChar*)parent_str);
-
-    if (optimization_level != 0) {
-        xmlTextWriterStartElement(cproject_writer, (xmlChar*)"option");
-        sprintf(parent_str, CPP_OPTIMIZATION_LEVEL_SUPERCLASS, TITLE);
-        put_id(parent_str, id_str);
-        xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"id", (xmlChar*)id_str);
-        xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"name", (xmlChar*)"Optimization Level");
-        xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"superClass", (xmlChar*)parent_str);
-        xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"useByScannerDiscovery", (xmlChar*)"false");
-        get_cpp_optimization_value(optimization_level, str);
-        xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"value", (xmlChar*)str);
-        xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"valueType", (xmlChar*)"enumerated");
-        xmlTextWriterEndElement(cproject_writer); // option 
-    }
-
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"option");
-    put_cpp_debugging_default_value();
-    get_cpp_debugging_level_superclass(parent_str);
-    put_id(parent_str, id_str);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"id", (xmlChar*)id_str);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"name", (xmlChar*)"Debug Level");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"superClass", (xmlChar*)parent_str);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"useByScannerDiscovery", (xmlChar*)"false");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"valueType", (xmlChar*)"enumerated");
-    xmlTextWriterEndElement(cproject_writer); // option 
-
-    xmlTextWriterEndElement(cproject_writer); // tool
-
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"tool");
-    sprintf(parent_str, C_LINKER_SUPERCLASS, TITLE);
-    put_id(parent_str, id_str);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"id", (xmlChar*)id_str);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"name", (xmlChar*)"MCU GCC Linker");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"superClass", (xmlChar*)parent_str);
-
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"option");
-    sprintf(parent_str, C_LINKER_SCRIPT_SUPERCLASS, TITLE);
-    put_id(parent_str, id_str);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"id", (xmlChar*)id_str);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"name", (xmlChar*)"Linker Script (-T)");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"superClass", (xmlChar*)parent_str);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"useByScannerDiscovery", (xmlChar*)"false");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"value", (xmlChar*)from_codemodel.linkerScript);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"valueType", (xmlChar*)"string");
-    xmlTextWriterEndElement(cproject_writer); // option 
-
-    put_c_link_option_flags();
-
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"inputType");
-    strcpy(parent_str, C_LINKER_INPUT_SUPERCLASS);
-    put_id(parent_str, id_str);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"id", (xmlChar*)id_str);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"superClass", (xmlChar*)parent_str);
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"additionalInput");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"kind", (xmlChar*)"additionalinputdependency");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"paths", (xmlChar*)"$(USER_OBJS)");
-    xmlTextWriterEndElement(cproject_writer); // additionalInput 
-
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"additionalInput");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"kind", (xmlChar*)"additionalinput");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"paths", (xmlChar*)"$(LIBS)");
-    xmlTextWriterEndElement(cproject_writer); // additionalInput 
-    xmlTextWriterEndElement(cproject_writer); // inputType
-
-    xmlTextWriterEndElement(cproject_writer); // tool    tool.gnu.cross.c.linker
-
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"tool");
-    sprintf(parent_str, CPP_LINKER_SUPERCLASS, TITLE);
-    put_id(parent_str, id_str);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"id", (xmlChar*)id_str);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"name", (xmlChar*)"MCU G++ Linker");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"superClass", (xmlChar*)parent_str);
-
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"option");
-    sprintf(parent_str, CPP_LINKER_SCRIPT_SUPERCLASS, TITLE);
-    put_id(parent_str, id_str);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"id", (xmlChar*)id_str);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"name", (xmlChar*)"Linker Script (-T)");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"superClass", (xmlChar*)parent_str);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"useByScannerDiscovery", (xmlChar*)"false");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"value", (xmlChar*)from_codemodel.linkerScript);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"valueType", (xmlChar*)"string");
-    xmlTextWriterEndElement(cproject_writer); // option
-
-    put_cpp_link_option_flags();
-
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"inputType");
-    strcpy(parent_str, CPP_LINKER_INPUT_SUPERCLASS);
-    put_id(parent_str, id_str);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"id", (xmlChar*)id_str);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"superClass", (xmlChar*)parent_str);
-
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"additionalInput");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"kind", (xmlChar*)"additionalinputdependency");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"paths", (xmlChar*)"$(USER_OBJS)");
-    xmlTextWriterEndElement(cproject_writer); // additionalInput 
-
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"additionalInput");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"kind", (xmlChar*)"additionalinput");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"paths", (xmlChar*)"$(LIBS)");
-    xmlTextWriterEndElement(cproject_writer); // additionalInput 
-
-    xmlTextWriterEndElement(cproject_writer); // inputType
-    xmlTextWriterEndElement(cproject_writer); // tool      tool.gnu.cross.cpp.linker
-
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"tool");
-    sprintf(parent_str, ARCHIVER_SUPERCLASS, TITLE);
-    put_id(parent_str, id_str);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"id", (xmlChar*)id_str);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"name", (xmlChar*)"MCU GCC Archiver");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"superClass", (xmlChar*)parent_str);
-    xmlTextWriterEndElement(cproject_writer); // tool
-
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"tool");
-    if (ASSEMBLER_SUPERCLASS)
-        sprintf(parent_str, ASSEMBLER_SUPERCLASS, TITLE);
-    else
-        get_assembler_superclass(debugBuild, parent_str);
-
-    put_id(parent_str, id_str);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"id", (xmlChar*)id_str);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"name", (xmlChar*)"MCU GCC Assembler");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"superClass", (xmlChar*)parent_str);
-
-    put_assembler_options(debugging_level);
-
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"inputType");
-    sprintf(parent_str, ASSEMBLER_INPUT_SUPERCLASS, TITLE);
-    put_id(parent_str, id_str);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"id", (xmlChar*)id_str);
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"superClass", (xmlChar*)parent_str);
-    xmlTextWriterEndElement(cproject_writer); // inputType
-
-    xmlTextWriterEndElement(cproject_writer); // tool   tool.gnu.cross.assembler.exe.*
-
-    xmlTextWriterEndElement(cproject_writer); // toolChain
-    xmlTextWriterEndElement(cproject_writer); // folderInfo
-
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"sourceEntries");
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"entry");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"excluding", (xmlChar*)"CMakeFiles");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"flags", (xmlChar*)"VALUE_WORKSPACE_PATH|RESOLVED");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"kind", (xmlChar*)"sourcePath");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"name", (xmlChar*)"");
-    xmlTextWriterEndElement(cproject_writer); // entry 
-    xmlTextWriterEndElement(cproject_writer); // sourceEntries
-
-    xmlTextWriterEndElement(cproject_writer); // configuration
     xmlTextWriterEndElement(cproject_writer); // storageModule for moduleId=cdtBuildSystem
 
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"storageModule");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"moduleId", (xmlChar*)"org.eclipse.cdt.core.externalSettings");
+    xmlTextWriterStartElement(cproject_writer, storageModule);
+    xmlTextWriterWriteAttribute(cproject_writer, moduleId, (xmlChar*)"org.eclipse.cdt.core.externalSettings");
     xmlTextWriterEndElement(cproject_writer); // storageModule
 
     xmlTextWriterEndElement(cproject_writer); // cconfiguration
@@ -1229,6 +771,11 @@ int cproject_start(bool force)
     const char *xml_filename = ".cproject";
     int ret;
 
+    if (cproject_init() < 0) {
+        printf("cproject_init() failed\n");
+        return -1;
+    }
+
     if (!force && stat(xml_filename, &st) == 0) {
         printf("%s already exists ", xml_filename);
         return -EEXIST;
@@ -1239,110 +786,37 @@ int cproject_start(bool force)
         printf("cannot create xml writer\r\n");
         return -1;
     }
-    ret = xmlTextWriterStartDocument(cproject_writer, NULL, "UTF-8", NULL);
+    ret = xmlTextWriterStartDocument(cproject_writer, NULL, "UTF-8", "no");
     if (ret < 0) {
         printf("Error at xmlTextWriterStartDocument\n");
         return ret;
     }
+
+    //xmlTextWriterWritePI(cproject_writer, (xmlChar*)"fileVersion", (xmlChar*)"4.0.0");
+
     ret = xmlTextWriterSetIndent(cproject_writer, 1);
     if (ret < 0) {
         printf("Error at xmlTextWriterSetIndent\n");
         return ret;
     }
-    xmlTextWriterSetIndentString(cproject_writer, (xmlChar*)"\t");
+    xmlTextWriterSetIndentString(cproject_writer, (xmlChar*)"\t");  // tabs instead of spaces
 
     xmlTextWriterWritePI(cproject_writer, (xmlChar*)"fileVersion", (xmlChar*)"4.0.0");
+
     xmlTextWriterStartElement(cproject_writer, (xmlChar*)"cproject");
     xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"storage_type_id", (xmlChar*)"org.eclipse.cdt.core.XmlProjectDescriptionStorage");
 
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"storageModule");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"moduleId", (xmlChar*)"org.eclipse.cdt.core.settings");
+    xmlTextWriterStartElement(cproject_writer, storageModule);
+    if (CDT_CORE_SETTINGS_CONFIGRELATIONS)
+        xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"configRelations", (xmlChar*)CDT_CORE_SETTINGS_CONFIGRELATIONS);
+    xmlTextWriterWriteAttribute(cproject_writer, moduleId, (xmlChar*)"org.eclipse.cdt.core.settings");
     instance_t debugInstance, releaseInstance;
     put_cconfiguration(true, &debugInstance);
     put_cconfiguration(false, &releaseInstance);
 
     xmlTextWriterEndElement(cproject_writer); // storageModule
 
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"storageModule");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"moduleId", (xmlChar*)"cdtBuildSystem");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"version", (xmlChar*)"4.0.0");
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"project");
-    put_cdt_project();
-    xmlTextWriterEndElement(cproject_writer); // project
-    xmlTextWriterEndElement(cproject_writer); // storageModule
-
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"storageModule");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"moduleId", (xmlChar*)"scannerConfiguration");
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"autodiscovery");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"enabled", (xmlChar*)"true");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"problemReportingEnabled", (xmlChar*)"");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"selectedProfileId", (xmlChar*)"");
-    xmlTextWriterEndElement(cproject_writer); // autodiscovery
-
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"scannerConfigBuildInfo");
-    {
-        unsigned len = 12;  // semicolons
-        len += strlen(debugInstance.config_gnu_cross_exe);
-        len += strlen(debugInstance.config_gnu_cross_exe);
-        len += strlen(debugInstance.tool_gnu_cross_c_compiler);
-        len += strlen(debugInstance.tool_gnu_cross_c_compiler_input);
-        char *str = malloc(len);
-        strcpy(str, debugInstance.config_gnu_cross_exe);
-        strcat(str, ";");
-        strcat(str, debugInstance.config_gnu_cross_exe);
-        strcat(str, ".;");
-        strcat(str, debugInstance.tool_gnu_cross_c_compiler);
-        strcat(str, ";");
-        strcat(str, debugInstance.tool_gnu_cross_c_compiler_input);
-        xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"instanceId", (xmlChar*)str);
-        free(str);
-    }
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"autodiscovery");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"enabled", (xmlChar*)"true");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"problemReportingEnabled", (xmlChar*)"");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"selectedProfileId", (xmlChar*)"");
-    xmlTextWriterEndElement(cproject_writer); // autodiscovery
-    xmlTextWriterEndElement(cproject_writer); // scannerConfigBuildInfo 
-
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"scannerConfigBuildInfo");
-    {
-        unsigned len = 12;  // semicolons
-        len += strlen(releaseInstance.config_gnu_cross_exe);
-        len += strlen(releaseInstance.config_gnu_cross_exe);
-        len += strlen(releaseInstance.tool_gnu_cross_c_compiler);
-        len += strlen(releaseInstance.tool_gnu_cross_c_compiler_input);
-        char *str = malloc(len);
-        strcpy(str, releaseInstance.config_gnu_cross_exe);
-        strcat(str, ";");
-        strcat(str, releaseInstance.config_gnu_cross_exe);
-        strcat(str, ".;");
-        strcat(str, releaseInstance.tool_gnu_cross_c_compiler);
-        strcat(str, ";");
-        strcat(str, releaseInstance.tool_gnu_cross_c_compiler_input);
-        xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"instanceId", (xmlChar*)str);
-        free(str);
-    }
-
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"autodiscovery");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"enabled", (xmlChar*)"true");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"problemReportingEnabled", (xmlChar*)"");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"selectedProfileId", (xmlChar*)"");
-    xmlTextWriterEndElement(cproject_writer); // autodiscovery
-    xmlTextWriterEndElement(cproject_writer); // scannerConfigBuildInfo 
-
-    xmlTextWriterEndElement(cproject_writer); // storageModule
-
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"storageModule");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"moduleId", (xmlChar*)"org.eclipse.cdt.core.LanguageSettingsProviders");
-    xmlTextWriterEndElement(cproject_writer); // storageModule
-
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"storageModule");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"moduleId", (xmlChar*)"refreshScope");
-    xmlTextWriterEndElement(cproject_writer); // storageModule
-
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"storageModule");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"moduleId", (xmlChar*)"org.eclipse.cdt.make.core.buildtargets");
-    xmlTextWriterEndElement(cproject_writer); // storageModule
+    put_other_storageModules(&debugInstance, &releaseInstance);
 
     xmlTextWriterEndElement(cproject_writer); // cproject
 

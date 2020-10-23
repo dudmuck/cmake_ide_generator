@@ -10,19 +10,17 @@ const char * const LanguageSettingsProviders = "org.eclipse.cdt.core.LanguageSet
 const char * const string = "string";
 const char * const stringList = "stringList";
 const char * const boolean = "boolean";
-const char * const enumerated = "enumerated";
+//const char * const enumerated = "enumerated";
 const char * const extensions = "extensions";
 const char * const extension = "extension";
 const char * const folderInfo = "folderInfo";
 const char * const toolChain = "toolChain";
 const char * const refreshScope = "refreshScope";
-const char * const storageModule = "storageModule";
 const char * const tool = "tool";
-const char * const useByScannerDiscovery = "useByScannerDiscovery";
 const char * const targetPlatform = "targetPlatform";
 const char * const builder = "builder";
 const char * const entry = "entry";
-const char * const option = "option";
+//const char * const option = "option";
 const char * const inputType = "inputType";
 const char * const listOptionValue = "listOptionValue";
 const char * const additionalInput = "additionalInput";
@@ -80,7 +78,7 @@ const char * const buildtargets = "org.eclipse.cdt.make.core.buildtargets";
 const char * const cdtBuildSystem = "cdtBuildSystem";
 const char * const scannerConfiguration = "scannerConfiguration";
 const char * const scannerConfigBuildInfo = "scannerConfigBuildInfo";
-const char * const autodiscovery = "autodiscovery";
+//const char * const autodiscovery = "autodiscovery";
 const char * const cconfiguration = "cconfiguration";
 const char * const configuration = "configuration";
 const char * const sourceEntries = "sourceEntries";
@@ -289,12 +287,12 @@ static int processNode(xmlTextReaderPtr reader)
     static char cconfiguration_name[32];
     static bool in_cconfiguration = false;
     int ret = 0;
-    const char *name, *value = NULL;
+    const char *name_in, *value_in = NULL;
     int depth, nodeType = xmlTextReaderNodeType(reader);
     if (nodeType == XML_NODE_TYPE_WHITE_SPACE)
         return 0;   // white space
 
-    name = (char*)xmlTextReaderConstName(reader);
+    name_in = (char*)xmlTextReaderConstName(reader);
     depth = xmlTextReaderDepth(reader);
 
     printf("depth%d:%d", depth, cproject_state[depth]);
@@ -303,27 +301,27 @@ static int processNode(xmlTextReaderPtr reader)
 
     printf(" %s \"%s\" %s %s", 
 	    nodeTypeToString(nodeType),
-	    name,
+	    name_in,
 	    xmlTextReaderIsEmptyElement(reader) ? "empty" : " - ",
 	    xmlTextReaderHasValue(reader) ? "value" : " - "
     );
 
     if (xmlTextReaderHasValue(reader)) {
-        value = (char*)xmlTextReaderConstValue(reader);
-        printf(" %s ", value);
+        value_in = (char*)xmlTextReaderConstValue(reader);
+        printf(" %s ", value_in);
     }
 
     if (nodeType == XML_NODE_TYPE_START_ELEMENT) {
-        char *attr_id = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"id");
-        char *attr_superClass = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"superClass");
-        char *attr_name = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"name");
-        char *attr_valueType = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"valueType");
-        char *attr_value = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"value");
+        char *attr_id = (char*)xmlTextReaderGetAttribute(reader, id);
+        char *attr_superClass = (char*)xmlTextReaderGetAttribute(reader, superClass);
+        char *attr_name = (char*)xmlTextReaderGetAttribute(reader, name);
+        char *attr_valueType = (char*)xmlTextReaderGetAttribute(reader, valueType);
+        char *attr_value = (char*)xmlTextReaderGetAttribute(reader, value);
         char *attr_useByScannerDiscovery = NULL;
         char *attr_IS_BUILTIN_EMPTY = NULL;
         char *attr_IS_VALUE_EMPTY = NULL;
 
-        if (strcmp(name, option) == 0) {
+        if (strcmp(name_in, (char*)option) == 0) {
             attr_useByScannerDiscovery = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)useByScannerDiscovery);
             attr_IS_BUILTIN_EMPTY = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"IS_BUILTIN_EMPTY");
             attr_IS_VALUE_EMPTY = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"IS_VALUE_EMPTY");
@@ -344,7 +342,7 @@ static int processNode(xmlTextReaderPtr reader)
                        strcmp(attr_valueType, "undefDefinedSymbols") != 0 &&
                        strcmp(attr_valueType, "libs") != 0 &&
                        strcmp(attr_valueType, "libPaths") != 0 &&
-                       strcmp(attr_valueType, enumerated) != 0)
+                       strcmp(attr_valueType, (char*)enumerated) != 0)
 
             {
                 printf("\e[31mline %d valueType %s\e[0m ", __LINE__, attr_valueType);
@@ -353,8 +351,8 @@ static int processNode(xmlTextReaderPtr reader)
         }
 
         if (depth > 0 && cproject_state[depth-1] == CPROJECT_STATE_LISTOPTIONVALUE) {
-            printf("line %d LISTOPTIONVALUE-%s %s ", __LINE__, name, attr_superClass);
-            if (strcmp(name, listOptionValue) == 0) {
+            printf("line %d LISTOPTIONVALUE-%s %s ", __LINE__, name_in, attr_superClass);
+            if (strcmp(name_in, listOptionValue) == 0) {
                 char *attr_builtIn = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"builtIn");
                 if (!attr_builtIn ) {
                     printf("\e[31mline %d listOptionValue-no-builtIn\e[0m ", __LINE__);
@@ -367,7 +365,7 @@ static int processNode(xmlTextReaderPtr reader)
                 printf(" * ");
                 free(attr_builtIn);
             } else {
-                printf("\e[31mline %d unknown name %s\e[0m ", __LINE__, name);
+                printf("\e[31mline %d unknown name %s\e[0m ", __LINE__, name_in);
                 ret = -1;
             }
         }
@@ -387,8 +385,8 @@ static int processNode(xmlTextReaderPtr reader)
             }
         }
 
-        if (strcmp(storageModule, name) == 0) {
-            char *attr_moduleId = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"moduleId");
+        if (strcmp((char*)storageModule, name_in) == 0) {
+            char *attr_moduleId = (char*)xmlTextReaderGetAttribute(reader, moduleId);
             char *attr_buildSystemId = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"buildSystemId");
             strcpy(storageModuleId[depth], attr_moduleId);
             printf(" \e[33mstart-%s\e[0m ", storageModuleId[depth]);
@@ -458,8 +456,8 @@ static int processNode(xmlTextReaderPtr reader)
 
             free(attr_moduleId);
             free(attr_buildSystemId);
-        } // ..if (strcmp(storageModule, name) == 0)
-        else if (strcmp(extension, name) == 0) {
+        } // ..if (strcmp(storageModule, name_in) == 0)
+        else if (strcmp(extension, name_in) == 0) {
             if (cproject_state[depth-1] == CPROJECT_STATE_EXTENSIONS) {
                 char *attr_point = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"point");
                 printf("line %d {{{%s %s}}} ", __LINE__, attr_id, attr_point);
@@ -490,7 +488,7 @@ static int processNode(xmlTextReaderPtr reader)
                 free(attr_point);
                 printf(" *  ");
             }
-        } else if (strcmp(autodiscovery, name) == 0) {
+        } else if (strcmp((char*)autodiscovery, name_in) == 0) {
             char *attr_enabled = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"enabled");
             char *attr_problemReportingEnabled = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"problemReportingEnabled");
             char *attr_selectedProfileId = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"selectedProfileId");
@@ -515,15 +513,15 @@ static int processNode(xmlTextReaderPtr reader)
         if (depth > 0) {
             if (cproject_state[depth-1] == CPROJECT_STATE_STORAGEMODULE_SETTINGS) {
                 if (in_cconfiguration) {
-                    if (strcmp(name, externalSettings) == 0) {
+                    if (strcmp(name_in, externalSettings) == 0) {
                         cconfiguration_has.bits.externalSettings = 1;
-                    } else if (strcmp(name, extensions) == 0) {
+                    } else if (strcmp(name_in, extensions) == 0) {
                         cconfiguration_has.bits.extensions = 1;
                         cproject_state[depth] = CPROJECT_STATE_EXTENSIONS;
                     }
                 }
             } else if (cproject_state[depth-1] == CPROJECT_STATE_STORAGEMODULE_CDTBUILDSYSTEM) {
-                if (strcmp(name, configuration) == 0) {
+                if (strcmp(name_in, configuration) == 0) {
                     char *attr_artifactExtension = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"artifactExtension");
                     char *attr_artifactName = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"artifactName");
                     char *attr_buildArtefactType = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"buildArtefactType");
@@ -581,7 +579,7 @@ static int processNode(xmlTextReaderPtr reader)
                     cproject_state[depth] = CPROJECT_STATE_CONFIGURATION;
                 }
             } else if (cproject_state[depth-1] == CPROJECT_STATE_CONFIGURATION) {
-                if (strcmp(name, folderInfo) == 0) {
+                if (strcmp(name_in, folderInfo) == 0) {
                     char *attr_resourcePath = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"resourcePath");
 
                     if (strncmp(attr_id, current_instance->config_gnu_cross_exe, strlen(current_instance->config_gnu_cross_exe)) != 0) {  /* trailing '.' */
@@ -597,14 +595,14 @@ static int processNode(xmlTextReaderPtr reader)
                     cconfiguration_has.bits.folderInfo = 1;
                     free(attr_resourcePath);
                     cproject_state[depth] = CPROJECT_STATE_FOLDERINFO;
-                } else if (strcmp(name, sourceEntries) == 0) {
+                } else if (strcmp(name_in, sourceEntries) == 0) {
                     cproject_state[depth] = CPROJECT_STATE_SOURCEENTRIES;
                 } else {
-                    printf("\e[31mline %d configuration %s\e[0m ", __LINE__, name);
+                    printf("\e[31mline %d configuration %s\e[0m ", __LINE__, name_in);
                     ret = -1;
                 }
             } else if (cproject_state[depth-1] == CPROJECT_STATE_FOLDERINFO) {
-                if (strcmp(name, toolChain) == 0) {
+                if (strcmp(name_in, toolChain) == 0) {
                     if (strncmp(attr_id, TITLE, strlen(TITLE)) != 0) {
                         printf("\e[31mline %d %s not %s\e[0m ", __LINE__, attr_id, TITLE);
                         ret = -1;
@@ -617,8 +615,8 @@ static int processNode(xmlTextReaderPtr reader)
                     }
                 }
             } else if (cproject_state[depth-1] == CPROJECT_STATE_TOOLCHAIN_EXE) {
-                printf("line %d TOOLCHAIN_EXE-%s %s ", __LINE__, name, attr_superClass);
-                if (strcmp(name, tool) == 0) {
+                printf("line %d TOOLCHAIN_EXE-%s %s ", __LINE__, name_in, attr_superClass);
+                if (strcmp(name_in, tool) == 0) {
                     if (strstr(attr_superClass, tool_assembler) != NULL) {
                         cconfiguration_has.bits.tool_assembler = 1;
                         cproject_state[depth] = CPROJECT_STATE_TOOL_ASSEMBLER;
@@ -725,7 +723,7 @@ static int processNode(xmlTextReaderPtr reader)
                         printf("\e[31mline %d tool %s\e[0m ", __LINE__, attr_superClass);
                         ret = -1;
                     }
-                } else if (strcmp(name, option) == 0) {
+                } else if (strcmp(name_in, (char*)option) == 0) {
                     if (strstr(attr_superClass, internal_toolchain_type) != NULL) {
                         cconfiguration_has.bits.internal_toolchain_type = 1;
                         if (!attr_value) {
@@ -787,7 +785,7 @@ static int processNode(xmlTextReaderPtr reader)
                             printf("\e[31mline %d no-value\e[0m ", __LINE__);
                             ret = -1;
                         }
-                        if (strcmp(attr_valueType, enumerated) != 0) {
+                        if (strcmp(attr_valueType, (char*)enumerated) != 0) {
                             printf("\e[31mline %d valueType %s\e[0m ", __LINE__, attr_valueType);
                             ret = -1;
                         }
@@ -798,7 +796,7 @@ static int processNode(xmlTextReaderPtr reader)
                             printf("\e[31mline %d no-value\e[0m ", __LINE__);
                             ret = -1;
                         }
-                        if (strcmp(attr_valueType, enumerated) != 0) {
+                        if (strcmp(attr_valueType, (char*)enumerated) != 0) {
                             printf("\e[31mline %d valueType %s\e[0m ", __LINE__, attr_valueType);
                             ret = -1;
                         }
@@ -829,7 +827,7 @@ static int processNode(xmlTextReaderPtr reader)
                         printf("\e[31mline %d unknown superClass %s\e[0m ", __LINE__, attr_superClass);
                         ret = -1;
                     }
-                } else if (strcmp(name, targetPlatform) == 0) {
+                } else if (strcmp(name_in, targetPlatform) == 0) {
                     char *attr_archList = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"archList");
                     char *attr_isAbstract = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"isAbstract");
                     char *attr_osList = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"osList");
@@ -850,7 +848,7 @@ static int processNode(xmlTextReaderPtr reader)
                     free(attr_isAbstract);
                     free(attr_osList);
                     printf(" * ");
-                } else if (strcmp(name, builder) == 0) {
+                } else if (strcmp(name_in, builder) == 0) {
                     char *attr_buildPath = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"buildPath");
                     char *attr_keepEnvironmentInBuildfile = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"keepEnvironmentInBuildfile");
                     char *attr_managedBuildOn = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"managedBuildOn");
@@ -884,19 +882,19 @@ static int processNode(xmlTextReaderPtr reader)
                     free(attr_parallelizationNumber);
                     printf(" * ");
                 } else {
-                    printf("\e[31mline %d unknown name %s\e[0m ", __LINE__, name);
+                    printf("\e[31mline %d unknown name %s\e[0m ", __LINE__, name_in);
                     ret = -1;
                 }
             } else if (cproject_state[depth-1] == CPROJECT_STATE_TOOL_ASSEMBLER_OPTION_DEBUGLEVEL) {
-                printf("line %d TOOL_ASSEMBLER_OPTION_DEBUGLEVEL-%s %s ", __LINE__, name, attr_superClass);
+                printf("line %d TOOL_ASSEMBLER_OPTION_DEBUGLEVEL-%s %s ", __LINE__, name_in, attr_superClass);
                 ret = -1;
             } else if (cproject_state[depth-1] == CPROJECT_STATE_TOOL_ASSEMBLER_INPUT) {
-                printf("line %d TOOL_ASSEMBLER_INPUT-%s %s ", __LINE__, name, attr_superClass);
+                printf("line %d TOOL_ASSEMBLER_INPUT-%s %s ", __LINE__, name_in, attr_superClass);
                 ret = -1;
 
             } else if (cproject_state[depth-1] == CPROJECT_STATE_TOOL_ASSEMBLER) {
-                printf("line %d TOOL_ASSEMBLER-%s %s ", __LINE__, name, attr_superClass);
-                if (strcmp(name, option) == 0) {
+                printf("line %d TOOL_ASSEMBLER-%s %s ", __LINE__, name_in, attr_superClass);
+                if (strcmp(name_in, (char*)option) == 0) {
                     if (strstr(attr_superClass, tool_assembler_option_debuglevel) != NULL) {
                         cconfiguration_has.bits.tool_assembler_option_debuglevel = 1;
                         cproject_state[depth] = CPROJECT_STATE_TOOL_ASSEMBLER_OPTION_DEBUGLEVEL;
@@ -904,7 +902,7 @@ static int processNode(xmlTextReaderPtr reader)
                             printf("\e[31mline %d no-value\e[0m ", __LINE__);
                             ret = -1;
                         }
-                        if (strcmp(attr_valueType, enumerated) != 0) {
+                        if (strcmp(attr_valueType, (char*)enumerated) != 0) {
                             printf("\e[31mline %d valueType\e[0m ", __LINE__);
                             ret = -1;
                         }
@@ -983,7 +981,7 @@ static int processNode(xmlTextReaderPtr reader)
                     } else
                         ret = -1;
 
-                } else if (strcmp(name, inputType) == 0) {
+                } else if (strcmp(name_in, inputType) == 0) {
                     if (strstr(attr_superClass, tool_assembler_input) != NULL) {
                         cconfiguration_has.bits.tool_assembler_input = 1;
                         cproject_state[depth] = CPROJECT_STATE_TOOL_ASSEMBLER_INPUT;
@@ -991,33 +989,33 @@ static int processNode(xmlTextReaderPtr reader)
                     } else
                         ret = -1;
                 } else {
-                    printf("\e[31mline %d unknown name %s\e[0m ", __LINE__, name);
+                    printf("\e[31mline %d unknown name %s\e[0m ", __LINE__, name_in);
                     ret = -1;
                 }
             } else if (cproject_state[depth-1] == CPROJECT_STATE_TOOL_SIZE) {
-                printf("line %d TOOL_SIZE-%s %s ", __LINE__, name, attr_superClass);
+                printf("line %d TOOL_SIZE-%s %s ", __LINE__, name_in, attr_superClass);
                 ret = -1;
             } else if (cproject_state[depth-1] == CPROJECT_STATE_TOOL_ARCHIVER) {
-                printf("line %d TOOL_ARCHIVER-%s %s ", __LINE__, name, attr_superClass);
+                printf("line %d TOOL_ARCHIVER-%s %s ", __LINE__, name_in, attr_superClass);
                 ret = -1;
             } else if (cproject_state[depth-1] == CPROJECT_STATE_TOOL_C_COMPILER_OPTION_DEBUGLEVEL) {
-                printf("line %d TOOL_C_COMPILER_OPTION_DEBUGLEVEL-%s %s ", __LINE__, name, attr_superClass);
+                printf("line %d TOOL_C_COMPILER_OPTION_DEBUGLEVEL-%s %s ", __LINE__, name_in, attr_superClass);
                 ret = -1;
             } else if (cproject_state[depth-1] == CPROJECT_STATE_TOOL_C_COMPILER_OPTION_OPTIMIZATION_LEVEL) {
-                printf("line %d TOOL_C_COMPILER_OPTION_OPTIMIZATION_LEVEL-%s %s ", __LINE__, name, attr_superClass);
+                printf("line %d TOOL_C_COMPILER_OPTION_OPTIMIZATION_LEVEL-%s %s ", __LINE__, name_in, attr_superClass);
                 ret = -1;
             } else if (cproject_state[depth-1] == CPROJECT_STATE_TOOL_C_COMPILER_INPUT_C) {
-                printf("line %d TOOL_C_COMPILER_INPUT_C-%s %s ", __LINE__, name, attr_superClass);
+                printf("line %d TOOL_C_COMPILER_INPUT_C-%s %s ", __LINE__, name_in, attr_superClass);
                 ret = -1;
             } else if (cproject_state[depth-1] == CPROJECT_STATE_TOOL_CPP_COMPILER_OPTION_DEBUGLEVEL) {
-                printf("line %d TOOL_CPP_COMPILER_OPTION_DEBUGLEVEL-%s %s ", __LINE__, name, attr_superClass);
+                printf("line %d TOOL_CPP_COMPILER_OPTION_DEBUGLEVEL-%s %s ", __LINE__, name_in, attr_superClass);
                 ret = -1;
             } else if (cproject_state[depth-1] == CPROJECT_STATE_TOOL_CPP_COMPILER_OPTION_OPTIMIZATION_LEVEL) {
-                printf("line %d TOOL_CPP_COMPILER_OPTION_OPTIMIZATION_LEVEL-%s %s ", __LINE__, name, attr_superClass);
+                printf("line %d TOOL_CPP_COMPILER_OPTION_OPTIMIZATION_LEVEL-%s %s ", __LINE__, name_in, attr_superClass);
                 ret = -1;
             } else if (cproject_state[depth-1] == CPROJECT_STATE_TOOL_C_COMPILER) {
-                printf("line %d TOOL_C_COMPILER-%s %s ", __LINE__, name, attr_superClass);
-                if (strcmp(name, option) == 0) {
+                printf("line %d TOOL_C_COMPILER-%s %s ", __LINE__, name_in, attr_superClass);
+                if (strcmp(name_in, (char*)option) == 0) {
                     if (strstr(attr_superClass, tool_c_compiler_option) != NULL) {
                         if (strstr(attr_superClass, "definedsymbols") != NULL) {
                             cconfiguration_has.bits.tool_c_compiler_option_definedsymbols = 1;
@@ -1028,7 +1026,7 @@ static int processNode(xmlTextReaderPtr reader)
                             }
                         } else if (strstr(attr_superClass, "debuglevel") != NULL) {
                             cconfiguration_has.bits.tool_c_compiler_option_debuglevel = 1;
-                            if (strcmp(attr_valueType, enumerated) != 0) {
+                            if (strcmp(attr_valueType, (char*)enumerated) != 0) {
                                 printf("\e[31mline %d valueType %s\e[0m ", __LINE__, attr_valueType);
                                 ret = -1;
                             }
@@ -1049,12 +1047,12 @@ static int processNode(xmlTextReaderPtr reader)
                             }
                         } else if (strstr(attr_superClass, "optimization.level") != NULL) {
                             cconfiguration_has.bits.tool_c_compiler_option_optimization_level  = 1;
-                            if (strcmp(attr_valueType, enumerated) != 0) {
+                            if (strcmp(attr_valueType, (char*)enumerated) != 0) {
                                 printf("\e[31mline %d valueType\e[0m ", __LINE__);
                                 ret = -1;
                             }
                         } else if (strstr(attr_superClass, "languagestandard") != NULL) {
-                            if (strcmp(attr_valueType, enumerated) != 0) {
+                            if (strcmp(attr_valueType, (char*)enumerated) != 0) {
                                 printf("\e[31mline %d valueType %s\e[0m ", __LINE__, attr_valueType);
                                 ret = -1;
                             }
@@ -1083,7 +1081,7 @@ static int processNode(xmlTextReaderPtr reader)
                         ret = -1;
                     }
 
-                } else if (strcmp(name, inputType) == 0) {
+                } else if (strcmp(name_in, inputType) == 0) {
                     if (strstr(attr_superClass, tool_c_compiler_input_c) != NULL) {
                         cconfiguration_has.bits.tool_c_compiler_input_c = 1;
                         cproject_state[depth] = CPROJECT_STATE_TOOL_C_COMPILER_INPUT_C;
@@ -1094,12 +1092,12 @@ static int processNode(xmlTextReaderPtr reader)
                         ret = -1;
                     }
                 } else {
-                    printf("\e[31mline %d unknown name %s\e[0m ", __LINE__, name);
+                    printf("\e[31mline %d unknown name %s\e[0m ", __LINE__, name_in);
                     ret = -1;
                 }
             } else if (cproject_state[depth-1] == CPROJECT_STATE_TOOL_LINKER_INPUT) {
-                printf("line %d TOOL_LINKER_INPUT-%s %s ", __LINE__, name, attr_superClass);
-                if (strcmp(name, additionalInput) == 0) {
+                printf("line %d TOOL_LINKER_INPUT-%s %s ", __LINE__, name_in, attr_superClass);
+                if (strcmp(name_in, additionalInput) == 0) {
                     char *attr_kind = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"kind");
                     char *attr_paths = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"paths");
                     if (!attr_kind) {
@@ -1118,8 +1116,8 @@ static int processNode(xmlTextReaderPtr reader)
                 }
                 printf(" * ");
             } else if (cproject_state[depth-1] == CPROJECT_STATE_TOOL_C_LINKER) {
-                printf("line %d TOOL_C_LINKER-%s %s ", __LINE__, name, attr_superClass);
-                if (strcmp(name, option) == 0) {
+                printf("line %d TOOL_C_LINKER-%s %s ", __LINE__, name_in, attr_superClass);
+                if (strcmp(name_in, (char*)option) == 0) {
                     if (strstr(attr_superClass, tool_c_linker_option) != NULL) {
                         if (strstr(attr_superClass, "script") != NULL) {
                             cconfiguration_has.bits.tool_c_linker_option_script = 1;
@@ -1172,7 +1170,7 @@ static int processNode(xmlTextReaderPtr reader)
                             }
                         }
                     }
-                } else if (strcmp(name, inputType) == 0) {
+                } else if (strcmp(name_in, inputType) == 0) {
                     if (strstr(attr_superClass, tool_c_linker_input) != NULL) {
                         cconfiguration_has.bits.tool_c_linker_input = 1;
                         cproject_state[depth] = CPROJECT_STATE_TOOL_LINKER_INPUT;
@@ -1182,12 +1180,12 @@ static int processNode(xmlTextReaderPtr reader)
                         ret = -1;
                     }
                 } else {
-                    printf("\e[31mline %d unknown name %s\e[0m ", __LINE__, name);
+                    printf("\e[31mline %d unknown name %s\e[0m ", __LINE__, name_in);
                     ret = -1;
                 }
             } else if (cproject_state[depth-1] == CPROJECT_STATE_TOOL_CPP_LINKER) {
-                printf("line %d TOOL_CPP_LINKER-%s %s ", __LINE__, name, attr_superClass);
-                if (strcmp(name, option) == 0) {
+                printf("line %d TOOL_CPP_LINKER-%s %s ", __LINE__, name_in, attr_superClass);
+                if (strcmp(name_in, (char*)option) == 0) {
                     if (strstr(attr_superClass, tool_cpp_linker_option_script) != NULL) {
                         cconfiguration_has.bits.tool_cpp_linker_option_script = 1;
                         cproject_state[depth] = CPROJECT_STATE_TOOL_CPP_LINKER_OPTION_SCRIPT;
@@ -1202,47 +1200,47 @@ static int processNode(xmlTextReaderPtr reader)
                         printf(" * ");
                     } else
                         ret = -1;
-                } else if (strcmp(name, inputType) == 0) {
+                } else if (strcmp(name_in, inputType) == 0) {
                     if (strstr(attr_superClass, tool_cpp_linker_input) != NULL) {
                         cproject_state[depth] = CPROJECT_STATE_TOOL_LINKER_INPUT;
                         printf(" * ");
                     } else
                         ret = -1;
                 } else {
-                    printf("\e[31mline %d unknown name %s\e[0m ", __LINE__, name);
+                    printf("\e[31mline %d unknown name %s\e[0m ", __LINE__, name_in);
                     ret = -1;
                 }
             } else if (cproject_state[depth-1] == CPROJECT_STATE_TOOL_OBJDUMP_LISTFILE) {
-                printf("line %d TOOL_OBJDUMP_LISTFILE-%s %s ", __LINE__, name, attr_superClass);
+                printf("line %d TOOL_OBJDUMP_LISTFILE-%s %s ", __LINE__, name_in, attr_superClass);
                 ret = -1;
             } else if (cproject_state[depth-1] == CPROJECT_STATE_TOOL_OBJCOPY_HEX) {
-                printf("line %d TOOL_OBJCOPY_HEX-%s %s ", __LINE__, name, attr_superClass);
+                printf("line %d TOOL_OBJCOPY_HEX-%s %s ", __LINE__, name_in, attr_superClass);
                 ret = -1;
             } else if (cproject_state[depth-1] == CPROJECT_STATE_TOOL_OBJCOPY_BINARY) {
-                printf("line %d TOOL_OBJCOPY_BINARY-%s %s ", __LINE__, name, attr_superClass);
+                printf("line %d TOOL_OBJCOPY_BINARY-%s %s ", __LINE__, name_in, attr_superClass);
                 ret = -1;
             } else if (cproject_state[depth-1] == CPROJECT_STATE_TOOL_OBJCOPY_VERILOG) {
-                printf("line %d TOOL_OBJCOPY_VERILOG-%s %s ", __LINE__, name, attr_superClass);
+                printf("line %d TOOL_OBJCOPY_VERILOG-%s %s ", __LINE__, name_in, attr_superClass);
                 ret = -1;
             } else if (cproject_state[depth-1] == CPROJECT_STATE_TOOL_OBJCOPY_SREC) {
-                printf("line %d TOOL_OBJCOPY_SREC-%s %s ", __LINE__, name, attr_superClass);
+                printf("line %d TOOL_OBJCOPY_SREC-%s %s ", __LINE__, name_in, attr_superClass);
                 ret = -1;
             } else if (cproject_state[depth-1] == CPROJECT_STATE_TOOL_OBJCOPY_SYMBOLSREC) {
-                printf("line %d TOOL_OBJCOPY_SYMBOLSREC-%s %s ", __LINE__, name, attr_superClass);
+                printf("line %d TOOL_OBJCOPY_SYMBOLSREC-%s %s ", __LINE__, name_in, attr_superClass);
                 ret = -1;
             } else if (cproject_state[depth-1] == CPROJECT_STATE_TOOL_C_LINKER_OPTION_SCRIPT) {
-                printf("line %d TOOL_C_LINKER_OPTION_SCRIPT-%s %s ", __LINE__, name, attr_superClass);
+                printf("line %d TOOL_C_LINKER_OPTION_SCRIPT-%s %s ", __LINE__, name_in, attr_superClass);
                 ret = -1;
             } else if (cproject_state[depth-1] == CPROJECT_STATE_TOOL_CPP_LINKER_OPTION_SCRIPT) {
-                printf("line %d TOOL_CPP_LINKER_OPTION_SCRIPT-%s %s ", __LINE__, name, attr_superClass);
+                printf("line %d TOOL_CPP_LINKER_OPTION_SCRIPT-%s %s ", __LINE__, name_in, attr_superClass);
                 ret = -1;
             } else if (cproject_state[depth-1] == CPROJECT_STATE_TOOL_CPP_COMPILER) {
-                printf("line %d TOOL_CPP_COMPILER-%s %s ", __LINE__, name, attr_superClass);
-                if (strcmp(name, option) == 0) {
+                printf("line %d TOOL_CPP_COMPILER-%s %s ", __LINE__, name_in, attr_superClass);
+                if (strcmp(name_in, (char*)option) == 0) {
                     if (strstr(attr_superClass, tool_cpp_compiler_option_debuglevel) != NULL) {
                         cconfiguration_has.bits.tool_cpp_compiler_option_debuglevel = 1;
                         cproject_state[depth] = CPROJECT_STATE_TOOL_CPP_COMPILER_OPTION_DEBUGLEVEL;
-                        if (strcmp(attr_valueType, enumerated) != 0) {
+                        if (strcmp(attr_valueType, (char*)enumerated) != 0) {
                             printf("\e[31mline %d valueType %s\e[0m ", __LINE__, attr_valueType);
                             ret = -1;
                         }
@@ -1258,13 +1256,13 @@ static int processNode(xmlTextReaderPtr reader)
                     } else
                         ret = -1;
                 } else {
-                    printf("\e[31mline %d unknown name %s\e[0m ", __LINE__, name);
+                    printf("\e[31mline %d unknown name %s\e[0m ", __LINE__, name_in);
                     ret = -1;
                 }
             }
             else if (cproject_state[depth-1] == CPROJECT_STATE_SOURCEENTRIES) {
-                printf("line %d SOURCEENTRIES-%s ", __LINE__, name);
-                if (strcmp(name, entry) == 0) {
+                printf("line %d SOURCEENTRIES-%s ", __LINE__, name_in);
+                if (strcmp(name_in, entry) == 0) {
                     char *attr_flags = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"flags");
                     char *attr_kind = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"kind");
                     if (attr_flags == NULL || attr_kind == NULL) {
@@ -1280,7 +1278,7 @@ static int processNode(xmlTextReaderPtr reader)
 
         switch (depth) {
             case 0:
-                if (strcmp(name, "cproject") != 0) {
+                if (strcmp(name_in, "cproject") != 0) {
                     fprintf(stderr, ".cproject not cproject ");
                     ret = -1;
                 } else
@@ -1292,14 +1290,14 @@ static int processNode(xmlTextReaderPtr reader)
                     ret = -1;
                     break;
                 }
-                if (strcmp(storageModule, name) != 0) {
-                    printf("\e[31m.cproject line %d unknown element %s\e[0m ", __LINE__, name);
+                if (strcmp((char*)storageModule, name_in) != 0) {
+                    printf("\e[31m.cproject line %d unknown element %s\e[0m ", __LINE__, name_in);
                     ret = -1;
                 }
                 break;
             case 2:
                 if (cproject_state[depth-1] == CPROJECT_STATE_STORAGEMODULE_CDTBUILDSYSTEM) {
-                    printf("line %d STORAGEMODULE_CDTBUILDSYSTEM-%s\e[0m ", __LINE__, name);
+                    printf("line %d STORAGEMODULE_CDTBUILDSYSTEM-%s\e[0m ", __LINE__, name_in);
                     if (!attr_name) {
                         printf("\e[31mline %d project no-name\e[0m ", __LINE__);
                         ret = -1;
@@ -1316,8 +1314,8 @@ static int processNode(xmlTextReaderPtr reader)
                     }
                     printf(" * ");
                 } else if (cproject_state[depth-1] == CPROJECT_STATE_STORAGEMODULE_SCANNERCONFIGURATION) {
-                    printf("line %d STORAGEMODULE_SCANNERCONFIGURATION-%s ", __LINE__, name);
-                    if (strcmp(name, scannerConfigBuildInfo) == 0) {
+                    printf("line %d STORAGEMODULE_SCANNERCONFIGURATION-%s ", __LINE__, name_in);
+                    if (strcmp(name_in, scannerConfigBuildInfo) == 0) {
                         cproject_state[depth] = CPROJECT_STATE_SCANNERCONFIGBUILDINFO;
                         char *attr_instanceId = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"instanceId");
                         if (attr_instanceId) {
@@ -1350,17 +1348,22 @@ static int processNode(xmlTextReaderPtr reader)
                         }
                         free(attr_instanceId);
                         printf(" * ");
-                    } else if (strcmp(name, autodiscovery) == 0) {
+                    } else if (strcmp(name_in, (char*)autodiscovery) == 0) {
                     } else {
                         printf("\e[31mline %d\e[0m ", __LINE__);
                         ret = -1;
                     }
                 } else if (cproject_state[depth-1] == CPROJECT_STATE_STORAGEMODULE_SETTINGS) {
-                    if (strcmp(cconfiguration, name) == 0) {
+                    if (strcmp(cconfiguration, name_in) == 0) {
                         in_cconfiguration = true;
                         cconfiguration_name[0] = 0;
                         cconfiguration_has.dword = 0;
                         printf("\e[7mcconfiguration id %s\e[0m ", attr_id);
+
+                        if (strstr(attr_id, ".config.exe.") == NULL) {
+                            printf("\e[31mline %d bad cconfiguration id\e[0m ", __LINE__);
+                            ret = -1;
+                        }
 
                         struct node_s **node = &instance_list;
                         if (*node) {
@@ -1377,7 +1380,7 @@ static int processNode(xmlTextReaderPtr reader)
 
                         strcpy(current_instance->config_gnu_cross_exe, attr_id);
                     } else {
-                        printf("\e[31mline %d CPROJECT_STATE_STORAGEMODULE_SETTINGS-%s ", __LINE__, name);
+                        printf("\e[31mline %d CPROJECT_STATE_STORAGEMODULE_SETTINGS-%s ", __LINE__, name_in);
                         ret = -1;
                     }
                 } else {
@@ -1387,8 +1390,8 @@ static int processNode(xmlTextReaderPtr reader)
                 break;
             case 3:
                 if (cproject_state[depth-1] == CPROJECT_STATE_SCANNERCONFIGBUILDINFO) {
-                    printf("line %d SCANNERCONFIGBUILDINFO-%s ", __LINE__, name);
-                    if (strcmp(name, autodiscovery) != 0) {
+                    printf("line %d SCANNERCONFIGBUILDINFO-%s ", __LINE__, name_in);
+                    if (strcmp(name_in, (char*)autodiscovery) != 0) {
                         printf("\e[31mline %d\e[0m ", __LINE__);
                         ret = -1;
                     }
@@ -1407,7 +1410,7 @@ static int processNode(xmlTextReaderPtr reader)
     } // ..if (nodeType == XML_NODE_TYPE_START_ELEMENT)
     else if (nodeType == XML_NODE_TYPE_END_OF_ELEMENT) {
         cproject_state[depth] = CPROJECT_STATE_NONE;
-        if (strcmp(storageModule, name) == 0) {
+        if (strcmp((char*)storageModule, name_in) == 0) {
             printf(" \e[33mend-%s\e[0m ", storageModuleId[depth]);
             if (strcmp(scannerConfiguration, storageModuleId[depth]) == 0) {
                 struct node_s *my_list;
@@ -1421,7 +1424,7 @@ static int processNode(xmlTextReaderPtr reader)
                 }
             }
             storageModuleId[depth][0] = 0;
-        } else if (strcmp(cconfiguration, name) == 0) {
+        } else if (strcmp(cconfiguration, name_in) == 0) {
             printf("\e[42mcconfiguration_has.dword : %lx\e[0m ", cconfiguration_has.dword);
             in_cconfiguration = false;
             cconfiguration_name[0] = 0;

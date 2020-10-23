@@ -1043,11 +1043,11 @@ int pack_parse(xmlTextReaderPtr reader, const char *mcu)
                 }
             }
         } /* ...XML_NODE_TYPE_START_ELEMENT */ else if (nodeType == XML_NODE_TYPE_TEXT) {
-            const char *value = (char*)xmlTextReaderConstValue(reader);
+            const char *value_in = (char*)xmlTextReaderConstValue(reader);
             switch (pack_state[1]) {
-                case PACK_STATE_PACKAGE_VENDOR: strcpy(from_pack.packVendor, value); break;
-                case PACK_STATE_PACKAGE_URL: strcpy(from_pack.packUrl, value); break;
-                case PACK_STATE_PACKAGE_NAME: strcpy(from_pack.packName, value); break;
+                case PACK_STATE_PACKAGE_VENDOR: strcpy(from_pack.packVendor, value_in); break;
+                case PACK_STATE_PACKAGE_URL: strcpy(from_pack.packUrl, value_in); break;
+                case PACK_STATE_PACKAGE_NAME: strcpy(from_pack.packName, value_in); break;
                 default: break;
             }
         } else if (nodeType == XML_NODE_TYPE_END_OF_ELEMENT) {

@@ -20,3 +20,21 @@ typedef enum {
     XML_NODE_TYPE_END_OF_ELEMENT, // 15
     XML_NODE_TYPE_, // 16
 } xml_node_type_e;
+
+
+extern const xmlChar * const storageModule;
+extern const xmlChar * const autodiscovery;
+extern const xmlChar * const enabled;
+extern const xmlChar * const moduleId;
+extern const xmlChar * const nature;
+extern const xmlChar * const useByScannerDiscovery;
+extern const xmlChar * const superClass;
+extern const xmlChar * const IS_VALUE_EMPTY;
+extern const xmlChar * const IS_BUILTIN_EMPTY;
+extern const xmlChar * const option;
+extern const xmlChar * const id;
+extern const xmlChar * const valueType;
+extern const xmlChar * const name;
+extern const xmlChar * const value;
+extern const xmlChar * const enumerated;
+

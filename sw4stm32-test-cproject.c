@@ -5,7 +5,7 @@
 
 const char * const TITLE = "fr.ac6.managedbuild";
 const char * const TITLE_ = "fr.ac6.managedbuid";    // only for gnu.c.compiler.option.misc.other
-const char * const enumerated = "enumerated";
+//const char * const enumerated = "enumerated";
 const char * const boolean = "boolean";
 const char * const string = "string";
 const char * const stringList = "stringList";
@@ -18,7 +18,7 @@ const char * const gnu_cpp_link_option = "gnu.cpp.link.option";
 const char * const gnu_cpp_compiler_option = "gnu.cpp.compiler.option";
 const char * const cdt_managedbuild_tool = "cdt.managedbuild.tool";
 const char * const gnu_both_asm_option = "gnu.both.asm.option";
-const char * const storageModule = "storageModule";
+//const char * const storageModule = "storageModule";
 const char * const settings = "org.eclipse.cdt.core.settings";
 const char * const LanguageSettingsProviders = "org.eclipse.cdt.core.LanguageSettingsProviders";
 const char * const core_externalSettings = "org.eclipse.cdt.core.externalSettings";
@@ -34,7 +34,7 @@ const char * const buildtargets = "org.eclipse.cdt.make.core.buildtargets";
 const char * const cdtBuildSystem = "cdtBuildSystem";
 const char * const scannerConfiguration = "scannerConfiguration";
 const char * const scannerConfigBuildInfo = "scannerConfigBuildInfo";
-const char * const autodiscovery = "autodiscovery";
+//const char * const autodiscovery = "autodiscovery";
 const char * const refreshScope = "refreshScope";
 const char * const cconfiguration = "cconfiguration";
 const char * const configuration = "configuration";
@@ -49,8 +49,7 @@ const char * const extension = "extension";
 const char * const folderInfo = "folderInfo";
 const char * const toolChain = "toolChain";
 const char * const tool = "tool";
-const char * const option = "option";
-const char * const useByScannerDiscovery = "useByScannerDiscovery";
+//const char * const option = "option";
 const char * const listOptionValue = "listOptionValue";
 const char * const _additionalInput = "additionalInput";
 const char * const targetPlatform = "targetPlatform";
@@ -185,12 +184,12 @@ static int processNode(xmlTextReaderPtr reader)
     static char cconfiguration_name[32];
     static bool in_cconfiguration = false;
     int ret = 0;
-    const char *name, *value = NULL;
+    const char *name_in, *value_in = NULL;
     int depth, nodeType = xmlTextReaderNodeType(reader);
     if (nodeType == XML_NODE_TYPE_WHITE_SPACE)
         return 0;   // white space
 
-    name = (char*)xmlTextReaderConstName(reader);
+    name_in = (char*)xmlTextReaderConstName(reader);
     depth = xmlTextReaderDepth(reader);
 
     printf("depth%d:%d", depth, cproject_state[depth]);
@@ -199,28 +198,28 @@ static int processNode(xmlTextReaderPtr reader)
 
     printf(" %s \"%s\" %s %s", 
 	    nodeTypeToString(nodeType),
-	    name,
+	    name_in,
 	    xmlTextReaderIsEmptyElement(reader) ? "empty" : " - ",
 	    xmlTextReaderHasValue(reader) ? "value" : " - "
     );
 
     if (xmlTextReaderHasValue(reader)) {
-        value = (char*)xmlTextReaderConstValue(reader);
-        printf(" %s ", value);
+        value_in = (char*)xmlTextReaderConstValue(reader);
+        printf(" %s ", value_in);
     }
 
     if (nodeType == XML_NODE_TYPE_START_ELEMENT) {
         bool has_title = false;
-        char *attr_id = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"id");
-        char *attr_superClass = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"superClass");
-        char *attr_name = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"name");
-        char *attr_valueType = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"valueType");
-        char *attr_value = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"value");
+        char *attr_id = (char*)xmlTextReaderGetAttribute(reader, id);
+        char *attr_superClass = (char*)xmlTextReaderGetAttribute(reader, superClass);
+        char *attr_name = (char*)xmlTextReaderGetAttribute(reader, name);
+        char *attr_valueType = (char*)xmlTextReaderGetAttribute(reader, valueType);
+        char *attr_value = (char*)xmlTextReaderGetAttribute(reader, value);
         char *attr_useByScannerDiscovery = NULL;
         char *attr_IS_BUILTIN_EMPTY = NULL;
         char *attr_IS_VALUE_EMPTY = NULL;
 
-        if (strcmp(name, option) == 0) {
+        if (strcmp(name_in, (char*)option) == 0) {
             attr_useByScannerDiscovery = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)useByScannerDiscovery);
             attr_IS_BUILTIN_EMPTY = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"IS_BUILTIN_EMPTY");
             attr_IS_VALUE_EMPTY = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"IS_VALUE_EMPTY");
@@ -251,7 +250,7 @@ static int processNode(xmlTextReaderPtr reader)
                        strcmp(attr_valueType, "undefDefinedSymbols") != 0 &&
                        strcmp(attr_valueType, libs) != 0 &&
                        strcmp(attr_valueType, libPaths) != 0 &&
-                       strcmp(attr_valueType, enumerated) != 0)
+                       strcmp(attr_valueType, (char*)enumerated) != 0)
 
             {
                 printf("\e[31mline %d valueType %s\e[0m ", __LINE__, attr_valueType);
@@ -261,8 +260,8 @@ static int processNode(xmlTextReaderPtr reader)
 
         if (depth > 0) {
             if (cproject_state[depth-1] == CPROJECT_STATE_LISTOPTIONVALUE) {
-                printf("line %d LISTOPTIONVALUE-%s %s ", __LINE__, name, attr_superClass);
-                if (strcmp(name, listOptionValue) == 0) {
+                printf("line %d LISTOPTIONVALUE-%s %s ", __LINE__, name_in, attr_superClass);
+                if (strcmp(name_in, listOptionValue) == 0) {
                     char *attr_builtIn = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"builtIn");
                     if (!attr_builtIn ) {
                         printf("\e[31mline %d listOptionValue-no-builtIn\e[0m ", __LINE__);
@@ -275,12 +274,12 @@ static int processNode(xmlTextReaderPtr reader)
                     printf(" * ");
                     free(attr_builtIn);
                 } else {
-                    printf("\e[31mline %d unknown name %s\e[0m ", __LINE__, name);
+                    printf("\e[31mline %d unknown name %s\e[0m ", __LINE__, name_in);
                     ret = -1;
                 }
             } else if (cproject_state[depth-1] == CPROJECT_STATE_ADDITIONALINPUT) {
-                printf("line %d ADDITIONALINPUT-%s %s ", __LINE__, name, attr_superClass);
-                if (strcmp(name, _additionalInput) == 0) {
+                printf("line %d ADDITIONALINPUT-%s %s ", __LINE__, name_in, attr_superClass);
+                if (strcmp(name_in, _additionalInput) == 0) {
                     char *attr_kind = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"kind");
                     char *attr_paths = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"paths");
                     if (!attr_kind) {
@@ -326,8 +325,8 @@ static int processNode(xmlTextReaderPtr reader)
                 has_title = true;
         }
 
-        if (strcmp(storageModule, name) == 0) {
-            char *attr_moduleId = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"moduleId");
+        if (strcmp((char*)storageModule, name_in) == 0) {
+            char *attr_moduleId = (char*)xmlTextReaderGetAttribute(reader, moduleId);
             char *attr_buildSystemId = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"buildSystemId");
             strcpy(storageModuleId[depth], attr_moduleId);
             printf(" \e[33mstart-%s\e[0m ", storageModuleId[depth]);
@@ -399,7 +398,7 @@ static int processNode(xmlTextReaderPtr reader)
             free(attr_moduleId);
             free(attr_buildSystemId);
         } // ..if (strcmp(storageModule, name) == 0)
-        else if (strcmp(extension, name) == 0) {
+        else if (strcmp(extension, name_in) == 0) {
             if (cproject_state[depth-1] == CPROJECT_STATE_EXTENSIONS) {
                 char *attr_point = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"point");
                 printf("line %d {{{%s %s}}} ", __LINE__, attr_id, attr_point);
@@ -430,7 +429,7 @@ static int processNode(xmlTextReaderPtr reader)
                 free(attr_point);
                 printf(" *  ");
             }
-        } else if (strcmp(autodiscovery, name) == 0) {
+        } else if (strcmp((char*)autodiscovery, name_in) == 0) {
             char *attr_enabled = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"enabled");
             char *attr_problemReportingEnabled = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"problemReportingEnabled");
             char *attr_selectedProfileId = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"selectedProfileId");
@@ -455,15 +454,15 @@ static int processNode(xmlTextReaderPtr reader)
         if (depth > 0) {
             if (cproject_state[depth-1] == CPROJECT_STATE_STORAGEMODULE_SETTINGS) {
                 if (in_cconfiguration) {
-                    if (strcmp(name, externalSettings) == 0) {
+                    if (strcmp(name_in, externalSettings) == 0) {
                         cconfiguration_has.bits.externalSettings = 1;
-                    } else if (strcmp(name, extensions) == 0) {
+                    } else if (strcmp(name_in, extensions) == 0) {
                         cconfiguration_has.bits.extensions = 1;
                         cproject_state[depth] = CPROJECT_STATE_EXTENSIONS;
                     }
                 }
             } else if (cproject_state[depth-1] == CPROJECT_STATE_STORAGEMODULE_CDTBUILDSYSTEM) {
-                if (strcmp(name, configuration) == 0) {
+                if (strcmp(name_in, configuration) == 0) {
                     char *attr_artifactExtension = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"artifactExtension");
                     char *attr_artifactName = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"artifactName");
                     char *attr_buildArtefactType = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"buildArtefactType");
@@ -536,7 +535,7 @@ parent="fr.ac6.managedbuild.config.gnu.cross.exe.debug"
                     cproject_state[depth] = CPROJECT_STATE_CONFIGURATION;
                 }
             } else if (cproject_state[depth-1] == CPROJECT_STATE_CONFIGURATION) {
-                if (strcmp(name, folderInfo) == 0) {
+                if (strcmp(name_in, folderInfo) == 0) {
                     char *attr_resourcePath = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"resourcePath");
 
                     if (strncmp(attr_id, current_instance->config_gnu_cross_exe, strlen(current_instance->config_gnu_cross_exe)) != 0) {  /* trailing '.' */
@@ -552,14 +551,14 @@ parent="fr.ac6.managedbuild.config.gnu.cross.exe.debug"
                     cconfiguration_has.bits.folderInfo = 1;
                     free(attr_resourcePath);
                     cproject_state[depth] = CPROJECT_STATE_FOLDERINFO;
-                } else if (strcmp(name, sourceEntries) == 0) {
+                } else if (strcmp(name_in, sourceEntries) == 0) {
                     cproject_state[depth] = CPROJECT_STATE_SOURCEENTRIES;
                 } else {
-                    printf("\e[31mline %d configuration %s\e[0m ", __LINE__, name);
+                    printf("\e[31mline %d configuration %s\e[0m ", __LINE__, name_in);
                     ret = -1;
                 }
             } else if (cproject_state[depth-1] == CPROJECT_STATE_FOLDERINFO) {
-                if (strcmp(name, toolChain) == 0) {
+                if (strcmp(name_in, toolChain) == 0) {
                     if (strncmp(attr_id, TITLE, strlen(TITLE)) != 0) {
                         printf("\e[31mline %d %s not %s\e[0m ", __LINE__, attr_id, TITLE);
                         ret = -1;
@@ -572,8 +571,8 @@ parent="fr.ac6.managedbuild.config.gnu.cross.exe.debug"
                     }
                 }
             } else if (cproject_state[depth-1] == CPROJECT_STATE_TOOLCHAIN_GNU_CROSS_EXE) {
-                printf("line %d TOOLCHAIN_GNU_CROSS_EXE-%s %s ", __LINE__, name, attr_superClass);
-                if (strcmp(name, tool) == 0) {
+                printf("line %d TOOLCHAIN_GNU_CROSS_EXE-%s %s ", __LINE__, name_in, attr_superClass);
+                if (strcmp(name_in, tool) == 0) {
                     if (strstr(attr_superClass, tool_gnu_cross_c_compiler) != NULL) {
                         cproject_state[depth] = CPROJECT_STATE_TOOL_GNU_CROSS_C_COMPILER;
                         strcpy(current_instance->tool_gnu_cross_c_compiler, attr_id);
@@ -622,7 +621,7 @@ parent="fr.ac6.managedbuild.config.gnu.cross.exe.debug"
                         printf("\e[31mline %d tool %s\e[0m ", __LINE__, attr_superClass);
                         ret = -1;
                     }
-                } else if (strcmp(name, option) == 0) {
+                } else if (strcmp(name_in, (char*)option) == 0) {
                     if (strstr(attr_superClass, option_gnu_cross_mcu) != NULL) {
                         if (!attr_name) {
                             printf("\e[31mline %d option.mcu no-name\e[0m ", __LINE__);
@@ -646,7 +645,7 @@ parent="fr.ac6.managedbuild.config.gnu.cross.exe.debug"
                             printf("\e[31mline %d option.fpu bad-value %s\e[0m ", __LINE__, attr_value);
                             ret = -1;
                         }
-                        if (strcmp(attr_valueType, enumerated) != 0) {
+                        if (strcmp(attr_valueType, (char*)enumerated) != 0) {
                             printf("\e[31mline %d valueType %s\e[0m ", __LINE__, attr_valueType);
                             ret = -1;
                         }
@@ -660,7 +659,7 @@ parent="fr.ac6.managedbuild.config.gnu.cross.exe.debug"
                             printf("\e[31mline %d option.floatabi bad-value %s\e[0m ", __LINE__, attr_value);
                             ret = -1;
                         }
-                        if (strcmp(attr_valueType, enumerated) != 0) {
+                        if (strcmp(attr_valueType, (char*)enumerated) != 0) {
                             printf("\e[31mline %d valueType %s\e[0m ", __LINE__, attr_valueType);
                             ret = -1;
                         }
@@ -683,7 +682,7 @@ parent="fr.ac6.managedbuild.config.gnu.cross.exe.debug"
                         printf("\e[31mline %d unknown superClass %s\e[0m ", __LINE__, attr_superClass);
                         ret = -1;
                     }
-                } else if (strcmp(name, targetPlatform) == 0) {
+                } else if (strcmp(name_in, targetPlatform) == 0) {
                     char *attr_archList = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"archList");
                     char *attr_binaryParser = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"binaryParser");
                     char *attr_isAbstract = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"isAbstract");
@@ -710,7 +709,7 @@ parent="fr.ac6.managedbuild.config.gnu.cross.exe.debug"
                     free(attr_isAbstract);
                     free(attr_osList);
                     printf(" * ");
-                } else if (strcmp(name, builder) == 0) {
+                } else if (strcmp(name_in, builder) == 0) {
                     char *attr_buildPath = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"buildPath");
                     char *attr_keepEnvironmentInBuildfile = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"keepEnvironmentInBuildfile");
                     char *attr_managedBuildOn = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"managedBuildOn");
@@ -748,12 +747,12 @@ parent="fr.ac6.managedbuild.config.gnu.cross.exe.debug"
                     free(attr_parallelizationNumber);
                     printf(" * ");
                 } else {
-                    printf("\e[31mline %d unknown name %s\e[0m ", __LINE__, name);
+                    printf("\e[31mline %d unknown name %s\e[0m ", __LINE__, name_in);
                     ret = -1;
                 }
             } else if (cproject_state[depth-1] == CPROJECT_STATE_TOOL_GNU_CROSS_C_COMPILER) {
-                printf("line %d TOOL_GNU_CROSS_C_COMPILER-%s %s ", __LINE__, name, attr_superClass);
-                if (strcmp(name, inputType) == 0) {
+                printf("line %d TOOL_GNU_CROSS_C_COMPILER-%s %s ", __LINE__, name_in, attr_superClass);
+                if (strcmp(name_in, inputType) == 0) {
                     if (strstr(attr_superClass, gnu_cross_c_compiler_input_c) != NULL)
                         strcpy(current_instance->tool_gnu_cross_c_compiler_input, attr_id);
                     else if (strstr(attr_superClass, gnu_cross_c_compiler_input_s) == NULL) {
@@ -761,7 +760,7 @@ parent="fr.ac6.managedbuild.config.gnu.cross.exe.debug"
                         ret = -1;
                     }
                     printf(" * ");
-                } else if (strcmp(name, option) == 0) {
+                } else if (strcmp(name_in, (char*)option) == 0) {
                     const char * const hack = "fr.ac6.managedbuid.gnu.c.compiler.option";   /* clusterfucks */
                     bool ok = false;
                     if (strncmp(attr_superClass, gnu_c_compiler_option, strlen(gnu_c_compiler_option)) == 0 ||
@@ -797,7 +796,7 @@ parent="fr.ac6.managedbuild.config.gnu.cross.exe.debug"
                             }
                             free(attr_defaultValue);
                         }
-                        if (strcmp(attr_valueType, enumerated) != 0) {
+                        if (strcmp(attr_valueType, (char*)enumerated) != 0) {
                             printf("\e[31mline %d valueType %s\e[0m ", __LINE__, attr_valueType);
                             ret = -1;
                         }
@@ -863,7 +862,7 @@ parent="fr.ac6.managedbuild.config.gnu.cross.exe.debug"
                             printf("\e[31mline %d value %s != %s\e[0m ", __LINE__, attr_value, gnu_c_compiler_dialect);
                             ret = -1;
                         }
-                        if (strcmp(attr_valueType, enumerated) != 0) {
+                        if (strcmp(attr_valueType, (char*)enumerated) != 0) {
                             printf("\e[31mline %d valueType %s\e[0m ", __LINE__, attr_valueType);
                             ret = -1;
                         }
@@ -872,12 +871,12 @@ parent="fr.ac6.managedbuild.config.gnu.cross.exe.debug"
                         ret = -1;
                     }
                 } else {
-                    printf("\e[31mline %d unknown name %s\e[0m ", __LINE__, name);
+                    printf("\e[31mline %d unknown name %s\e[0m ", __LINE__, name_in);
                     ret = -1;
                 }
             } else if (cproject_state[depth-1] == CPROJECT_STATE_TOOL_GNU_CROSS_CPP_COMPILER) {
-                printf("line %d TOOL_GNU_CROSS_CPP_COMPILER-%s %s ", __LINE__, name, attr_superClass);
-                if (strcmp(name, option) == 0) {
+                printf("line %d TOOL_GNU_CROSS_CPP_COMPILER-%s %s ", __LINE__, name_in, attr_superClass);
+                if (strcmp(name_in, (char*)option) == 0) {
                     if (!attr_name) {
                         printf("\e[31mline %d option no-name\e[0m ", __LINE__);
                         ret = -1;
@@ -891,13 +890,13 @@ parent="fr.ac6.managedbuild.config.gnu.cross.exe.debug"
                         ret = -1;
                     }
                 } else {
-                    printf("\e[31mline %d unknown name %s\e[0m ", __LINE__, name);
+                    printf("\e[31mline %d unknown name %s\e[0m ", __LINE__, name_in);
                     ret = -1;
                 }
                 printf(" * ");
             } else if (cproject_state[depth-1] == CPROJECT_STATE_TOOL_GNU_CROSS_C_LINKER) {
-                printf("line %d TOOL_GNU_CROSS_C_LINKER-%s %s", __LINE__, name, attr_superClass);
-                if (strcmp(name, inputType) == 0) {
+                printf("line %d TOOL_GNU_CROSS_C_LINKER-%s %s", __LINE__, name_in, attr_superClass);
+                if (strcmp(name_in, inputType) == 0) {
                     if (strcmp(attr_superClass, cdt_managedbuild_tool_gnu_c_linker_input) == 0) {
                         cproject_state[depth] = CPROJECT_STATE_ADDITIONALINPUT;
                         printf(" * ");
@@ -905,7 +904,7 @@ parent="fr.ac6.managedbuild.config.gnu.cross.exe.debug"
                         printf("\e[31mline %d linker-input %s\e[0m ", __LINE__, attr_superClass);
                         ret = -1;
                     }
-                } else if (strcmp(name, option) == 0) {
+                } else if (strcmp(name_in, (char*)option) == 0) {
                     if (strncmp(attr_superClass, gnu_c_link_option, strlen(gnu_c_link_option)) == 0 ||
                         strncmp(attr_superClass, gnu_cpp_link_option, strlen(gnu_cpp_link_option)) == 0)
                     {
@@ -969,12 +968,12 @@ parent="fr.ac6.managedbuild.config.gnu.cross.exe.debug"
                         ret = -1;
                     }
                 } else {
-                    printf("\e[31mline %d link name %s\e[0m ", __LINE__, name);
+                    printf("\e[31mline %d link name %s\e[0m ", __LINE__, name_in);
                     ret = -1;
                 }
             } else if (cproject_state[depth-1] == CPROJECT_STATE_TOOL_GNU_CROSS_CPP_LINKER) {
-                printf("line %d TOOL_GNU_CROSS_CPP_LINKER-%s %s", __LINE__, name, attr_superClass);
-                if (strcmp(name, option) == 0) {
+                printf("line %d TOOL_GNU_CROSS_CPP_LINKER-%s %s", __LINE__, name_in, attr_superClass);
+                if (strcmp(name_in, (char*)option) == 0) {
                     if (strncmp(attr_superClass, gnu_cpp_link_option, strlen(gnu_cpp_link_option)) == 0) {
                         if (!attr_useByScannerDiscovery) {
                             printf("\e[31mline %d %s no %s\e[0m ", __LINE__, attr_superClass, useByScannerDiscovery);
@@ -992,7 +991,7 @@ parent="fr.ac6.managedbuild.config.gnu.cross.exe.debug"
                         }
                     }
                     printf(" * ");
-                } else if (strcmp(name, inputType) == 0) {
+                } else if (strcmp(name_in, inputType) == 0) {
                     if (strcmp(attr_superClass, cdt_managedbuild_tool_gnu_cpp_linker_input) == 0) {
                         cproject_state[depth] = CPROJECT_STATE_ADDITIONALINPUT;
                         printf(" * ");
@@ -1001,15 +1000,15 @@ parent="fr.ac6.managedbuild.config.gnu.cross.exe.debug"
                         ret = -1;
                     }
                 } else {
-                    printf("\e[31mline %d cpp-link name %s\e[0m ", __LINE__, name);
+                    printf("\e[31mline %d cpp-link name %s\e[0m ", __LINE__, name_in);
                     ret = -1;
                 }
             } else if (cproject_state[depth-1] == CPROJECT_STATE_TOOL_GNU_ARCHIVER) {
-                printf("\e[31mline %d TOOL_GNU_ARCHIVER-%s\e[0m ", __LINE__, name);
+                printf("\e[31mline %d TOOL_GNU_ARCHIVER-%s\e[0m ", __LINE__, name_in);
                 ret = -1;   /* unknown archiver element */
             } else if (cproject_state[depth-1] == CPROJECT_STATE_TOOL_GNU_CROSS_ASSEMBLER) {
-                printf("line %d TOOL_GNU_CROSS_ASSEMBLER-%s %s ", __LINE__, name, attr_superClass);
-                if (strcmp(name, inputType) == 0) {
+                printf("line %d TOOL_GNU_CROSS_ASSEMBLER-%s %s ", __LINE__, name_in, attr_superClass);
+                if (strcmp(name_in, inputType) == 0) {
                     if (strcmp(attr_superClass, cdt_managedbuild_tool_gnu_assembler_input) == 0) {
                         cconfiguration_has.bits.tool_gnu_assembler_input = 1;
                     } else if (has_title) {
@@ -1017,7 +1016,7 @@ parent="fr.ac6.managedbuild.config.gnu.cross.exe.debug"
                             cconfiguration_has.bits.tool_gnu_cross_assembler_input = 1;
                         }
                     }
-                } else if (strcmp(name, option) == 0) {
+                } else if (strcmp(name_in, (char*)option) == 0) {
                     if (strcmp(attr_superClass, gnu_both_asm_option_include_paths) == 0) {
                         cproject_state[depth] = CPROJECT_STATE_LISTOPTIONVALUE;
                         if (!attr_IS_BUILTIN_EMPTY) {
@@ -1039,13 +1038,13 @@ parent="fr.ac6.managedbuild.config.gnu.cross.exe.debug"
                         }
                     }
                 } else {
-                    printf("\e[31mline %d name %s\e[0m ", __LINE__, name);
+                    printf("\e[31mline %d name %s\e[0m ", __LINE__, name_in);
                     ret = -1;
                 }
                 printf(" * ");
             } else if (cproject_state[depth-1] == CPROJECT_STATE_SOURCEENTRIES) {
-                printf("line %d SOURCEENTRIES-%s ", __LINE__, name);
-                if (strcmp(name, entry) == 0) {
+                printf("line %d SOURCEENTRIES-%s ", __LINE__, name_in);
+                if (strcmp(name_in, entry) == 0) {
                     char *attr_flags = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"flags");
                     char *attr_kind = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"kind");
                     if (attr_flags == NULL || attr_kind == NULL) {
@@ -1061,7 +1060,7 @@ parent="fr.ac6.managedbuild.config.gnu.cross.exe.debug"
 
         switch (depth) {
             case 0:
-                if (strcmp(name, "cproject") != 0) {
+                if (strcmp(name_in, "cproject") != 0) {
                     fprintf(stderr, ".cproject not cproject ");
                     ret = -1;
                 } else
@@ -1073,15 +1072,15 @@ parent="fr.ac6.managedbuild.config.gnu.cross.exe.debug"
                     ret = -1;
                     break;
                 }
-                if (strcmp(storageModule, name) != 0) {
-                    printf("\e[31m.cproject line %d unknown element %s\e[0m ", __LINE__, name);
+                if (strcmp((char*)storageModule, name_in) != 0) {
+                    printf("\e[31m.cproject line %d unknown element %s\e[0m ", __LINE__, name_in);
                     ret = -1;
                 }
                 break;
             case 2:
                 if (cproject_state[depth-1] == CPROJECT_STATE_STORAGEMODULE_CDTBUILDSYSTEM) {
                     char *attr_projectType = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"projectType");
-                    printf("line %d STORAGEMODULE_CDTBUILDSYSTEM-%s\e[0m ", __LINE__, name);
+                    printf("line %d STORAGEMODULE_CDTBUILDSYSTEM-%s\e[0m ", __LINE__, name_in);
                     if (!attr_name) {
                         printf("\e[31mline %d project  no-name\e[0m ", __LINE__);
                         ret = -1;
@@ -1093,8 +1092,8 @@ parent="fr.ac6.managedbuild.config.gnu.cross.exe.debug"
                     free(attr_projectType);
                     printf(" * ");
                 } else if (cproject_state[depth-1] == CPROJECT_STATE_STORAGEMODULE_SCANNERCONFIGURATION) {
-                    printf("line %d STORAGEMODULE_SCANNERCONFIGURATION-%s ", __LINE__, name);
-                    if (strcmp(name, scannerConfigBuildInfo) == 0) {
+                    printf("line %d STORAGEMODULE_SCANNERCONFIGURATION-%s ", __LINE__, name_in);
+                    if (strcmp(name_in, scannerConfigBuildInfo) == 0) {
                         cproject_state[depth] = CPROJECT_STATE_SCANNERCONFIGBUILDINFO;
                         char *attr_instanceId = (char*)xmlTextReaderGetAttribute(reader, (xmlChar*)"instanceId");
                         if (attr_instanceId) {
@@ -1130,17 +1129,22 @@ parent="fr.ac6.managedbuild.config.gnu.cross.exe.debug"
                         }
                         free(attr_instanceId);
                         printf(" * ");
-                    } else if (strcmp(name, autodiscovery) == 0) {
+                    } else if (strcmp(name_in, (char*)autodiscovery) == 0) {
                     } else {
                         printf("\e[31mline %d\e[0m ", __LINE__);
                         ret = -1;
                     }
                 } else if (cproject_state[depth-1] == CPROJECT_STATE_STORAGEMODULE_SETTINGS) {
-                    if (strcmp(cconfiguration, name) == 0) {
+                    if (strcmp(cconfiguration, name_in) == 0) {
                         in_cconfiguration = true;
                         cconfiguration_name[0] = 0;
                         cconfiguration_has.dword = 0;
                         printf("\e[7mcconfiguration id %s ((prefix %s))\e[0m ", attr_id, cconfiguration_id_prefix);
+
+                        if (strstr(attr_id, ".config.gnu.cross.exe.") == NULL) {
+                            printf("\e[31mline %d bad cconfiguration id\e[0m ", __LINE__);
+                            ret = -1;
+                        }
 
                         struct node_s **node = &instance_list;
                         if (*node) {
@@ -1157,7 +1161,7 @@ parent="fr.ac6.managedbuild.config.gnu.cross.exe.debug"
 
                         strcpy(current_instance->config_gnu_cross_exe, attr_id);
                     } else {
-                        printf("\e[31mline %d CPROJECT_STATE_STORAGEMODULE_SETTINGS-%s ", __LINE__, name);
+                        printf("\e[31mline %d CPROJECT_STATE_STORAGEMODULE_SETTINGS-%s ", __LINE__, name_in);
                         ret = -1;
                     }
                 } else {
@@ -1167,7 +1171,7 @@ parent="fr.ac6.managedbuild.config.gnu.cross.exe.debug"
                 break;
             case 3:
                 if (cproject_state[depth-1] == CPROJECT_STATE_SCANNERCONFIGBUILDINFO) {
-                    printf("line %d SCANNERCONFIGBUILDINFO-%s ", __LINE__, name);
+                    printf("line %d SCANNERCONFIGBUILDINFO-%s ", __LINE__, name_in);
                 }
                 break;
         } // ..switch (depth)
@@ -1183,7 +1187,7 @@ parent="fr.ac6.managedbuild.config.gnu.cross.exe.debug"
     } // ..if (nodeType == XML_NODE_TYPE_START_ELEMENT)
     else if (nodeType == XML_NODE_TYPE_END_OF_ELEMENT) {
         cproject_state[depth] = CPROJECT_STATE_NONE;
-        if (strcmp(storageModule, name) == 0) {
+        if (strcmp((char*)storageModule, name_in) == 0) {
             printf(" \e[33mend-%s\e[0m ", storageModuleId[depth]);
             if (strcmp(scannerConfiguration, storageModuleId[depth]) == 0) {
                 struct node_s *my_list;
@@ -1197,7 +1201,7 @@ parent="fr.ac6.managedbuild.config.gnu.cross.exe.debug"
                 }
             }
             storageModuleId[depth][0] = 0;
-        } else if (strcmp(cconfiguration, name) == 0) {
+        } else if (strcmp(cconfiguration, name_in) == 0) {
             printf("\e[42mcconfiguration_has.dword : %x\e[0m ", cconfiguration_has.dword);
             in_cconfiguration = false;
             cconfiguration_name[0] = 0;

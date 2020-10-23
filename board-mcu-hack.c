@@ -54,7 +54,9 @@ const struct board_table_s board_table[] = {
     { "SKiM880B",       "STM32L151CBUxA" },
     { "NAMote72",       "STM32L152RCTx" },
     { "B-L072Z-LRWAN1", "STM32L072CZYx" },
+    { "MSP-EXP432P401R", "MSP432P401R" },
     { NULL, NULL }
+
 };
 
 void string_to_lower(const char *in, char *out)
