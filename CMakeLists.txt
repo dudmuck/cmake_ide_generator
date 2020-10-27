@@ -34,8 +34,11 @@ target_link_libraries(ccs-test ${LIBXML2_LIBRARIES})
 target_link_libraries(cdt-xml-compare ${LIBXML2_LIBRARIES})
 
 set_property(TARGET sw4stm32-parse-reply PROPERTY C_STANDARD 99)
+set_property(TARGET sw4stm32-test PROPERTY C_STANDARD 99)
 set_property(TARGET ccs-parse-reply PROPERTY C_STANDARD 99)
+set_property(TARGET ccs-test PROPERTY C_STANDARD 99)
 set_property(TARGET stm32cubeide-parse-reply PROPERTY C_STANDARD 99)
+set_property(TARGET stm32cubeide-test PROPERTY C_STANDARD 99)
 set_property(TARGET uvision-parse-reply PROPERTY C_STANDARD 99)
 set_property(TARGET cdt-xml-compare PROPERTY C_STANDARD 99)
 

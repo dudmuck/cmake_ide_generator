@@ -1,5 +1,7 @@
 #include <string.h>
 #include <stdbool.h>
+#include <stdint.h>
+#include <inttypes.h>
 #include <libxml/xmlreader.h>
 #include "xml.h"
 
@@ -10,7 +12,6 @@ const char * const LanguageSettingsProviders = "org.eclipse.cdt.core.LanguageSet
 const char * const string = "string";
 const char * const stringList = "stringList";
 const char * const boolean = "boolean";
-//const char * const enumerated = "enumerated";
 const char * const extensions = "extensions";
 const char * const extension = "extension";
 const char * const folderInfo = "folderInfo";
@@ -20,7 +21,6 @@ const char * const tool = "tool";
 const char * const targetPlatform = "targetPlatform";
 const char * const builder = "builder";
 const char * const entry = "entry";
-//const char * const option = "option";
 const char * const inputType = "inputType";
 const char * const listOptionValue = "listOptionValue";
 const char * const additionalInput = "additionalInput";
@@ -78,7 +78,6 @@ const char * const buildtargets = "org.eclipse.cdt.make.core.buildtargets";
 const char * const cdtBuildSystem = "cdtBuildSystem";
 const char * const scannerConfiguration = "scannerConfiguration";
 const char * const scannerConfigBuildInfo = "scannerConfigBuildInfo";
-//const char * const autodiscovery = "autodiscovery";
 const char * const cconfiguration = "cconfiguration";
 const char * const configuration = "configuration";
 const char * const sourceEntries = "sourceEntries";
@@ -1425,13 +1424,13 @@ static int processNode(xmlTextReaderPtr reader)
             }
             storageModuleId[depth][0] = 0;
         } else if (strcmp(cconfiguration, name_in) == 0) {
-            printf("\e[42mcconfiguration_has.dword : %lx\e[0m ", cconfiguration_has.dword);
+            printf("\e[42mcconfiguration_has.dword : %" PRIx64 "\e[0m ", cconfiguration_has.dword);
             in_cconfiguration = false;
             cconfiguration_name[0] = 0;
             current_instance = NULL;
             if (cconfiguration_has.dword != 0x1fffffffff) {
                 show_cconfiguration_missing(cconfiguration_has);
-                printf("\e[31mline %d cconfiguration_has.dword : %lx\e[0m ", __LINE__, cconfiguration_has.dword);
+                printf("\e[31mline %d cconfiguration_has.dword : %" PRIx64 "\e[0m ", __LINE__, cconfiguration_has.dword);
                 ret = -1;
             }
         }

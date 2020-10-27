@@ -1,11 +1,11 @@
 #include <string.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <libxml/xmlreader.h>
 #include "xml.h"
 
 const char * const TITLE = "fr.ac6.managedbuild";
 const char * const TITLE_ = "fr.ac6.managedbuid";    // only for gnu.c.compiler.option.misc.other
-//const char * const enumerated = "enumerated";
 const char * const boolean = "boolean";
 const char * const string = "string";
 const char * const stringList = "stringList";
@@ -18,7 +18,6 @@ const char * const gnu_cpp_link_option = "gnu.cpp.link.option";
 const char * const gnu_cpp_compiler_option = "gnu.cpp.compiler.option";
 const char * const cdt_managedbuild_tool = "cdt.managedbuild.tool";
 const char * const gnu_both_asm_option = "gnu.both.asm.option";
-//const char * const storageModule = "storageModule";
 const char * const settings = "org.eclipse.cdt.core.settings";
 const char * const LanguageSettingsProviders = "org.eclipse.cdt.core.LanguageSettingsProviders";
 const char * const core_externalSettings = "org.eclipse.cdt.core.externalSettings";
@@ -34,7 +33,6 @@ const char * const buildtargets = "org.eclipse.cdt.make.core.buildtargets";
 const char * const cdtBuildSystem = "cdtBuildSystem";
 const char * const scannerConfiguration = "scannerConfiguration";
 const char * const scannerConfigBuildInfo = "scannerConfigBuildInfo";
-//const char * const autodiscovery = "autodiscovery";
 const char * const refreshScope = "refreshScope";
 const char * const cconfiguration = "cconfiguration";
 const char * const configuration = "configuration";
@@ -49,7 +47,6 @@ const char * const extension = "extension";
 const char * const folderInfo = "folderInfo";
 const char * const toolChain = "toolChain";
 const char * const tool = "tool";
-//const char * const option = "option";
 const char * const listOptionValue = "listOptionValue";
 const char * const _additionalInput = "additionalInput";
 const char * const targetPlatform = "targetPlatform";

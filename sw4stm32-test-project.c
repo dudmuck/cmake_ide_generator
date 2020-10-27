@@ -1,4 +1,5 @@
 #include <string.h>
+#include <stdint.h>
 #include <libxml/xmlreader.h>
 #include "xml.h"
 
