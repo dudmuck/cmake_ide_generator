@@ -14,6 +14,20 @@ const char * const openAttributes[] = {
     NULL
 };
 
+/* elements in control file which arent required to be in FUT */
+const char * const optionalElements[] = {
+    "listOptionValue",
+    "sourceEntries",
+    "entry",
+    NULL
+};
+
+/* superClasses in control file which arent required to be in FUT */
+const char * const optionalSuperClasses[] = {
+    "com.st.stm32cube.ide.mcu.gnu.managedbuild.option.defaults" ,
+    NULL
+};
+
 typedef struct {
     const char *superClass_prefix;
     const char *value_prefix;
@@ -21,19 +35,22 @@ typedef struct {
 
 enumeration_exception_t enumeration_exceptions[] = {
     {"gnu.c.compiler.option.", "gnu.c."}, /* for ac6 sw4stm32 */
+    {"gnu.cpp.compiler.option.", "gnu.cpp.compiler."}, /* for ac6 sw4stm32 */
     {"fr.ac6.managedbuild.gnu.c.compiler.option.", "fr.ac6.managedbuild.gnu.c."},
     {"fr.ac6.managedbuild.gnu.cpp.compiler.option.", "fr.ac6.managedbuild.gnu.cpp."},
+    {"ilg.gnuarmeclipse.managedbuild.cross.option.arm.target.family", "ilg.gnuarmeclipse.managedbuild.cross.option.arm.target.mcpu"},
     {NULL, NULL}
 };
 
 const char *tool_instance_id_substrings[] = {
-    ".tool.c.compiler", /* stm32CubeIDE */
+    ".tool.c.compiler", /* stm32CubeIDE and e2studio */
     ".tool.gnu.cross.c.compiler", /* ac6 sw4stm32 */
     NULL
 };
 
 const char *inputType_instance_id_substrings[] = {
-    ".tool.c.compiler.input.c",  /* stm32CubeIDE */
+    /*".tool.c.compiler.input.c",  * stm32CubeIDE */
+    ".tool.c.compiler.input",  /* stm32CubeIDE and e2studio */
     ".tool.gnu.cross.c.compiler.input.c", /* ac6 sw4stm32 */
     NULL
 };
@@ -139,11 +156,9 @@ static int processNode(xmlTextReaderPtr reader, const char *title, struct node_s
                 append_id_to_instance = true;
             else if (strcmp((*node)->name, "tool") == 0) {
                 append_id_to_instance = true;
-                //id_substring = ".tool.c.compiler";
                 id_substrings = tool_instance_id_substrings;
             } else if (strcmp((*node)->name, "inputType") == 0) {
                 append_id_to_instance = true;
-                //id_substring = ".tool.c.compiler.input.c";
                 id_substrings = inputType_instance_id_substrings;
             }
         } else if (XML_NODE_TYPE_END_OF_ELEMENT == nodeType) {
@@ -190,7 +205,6 @@ static int processNode(xmlTextReaderPtr reader, const char *title, struct node_s
                     if (append) {
                         strcat(_fut_instance_id[_fut_instance_id_idx], ";");
                         strcat(_fut_instance_id[_fut_instance_id_idx], a_value);
-                        //printf("##### %s ##########\n", _fut_instance_id[_fut_instance_id_idx]);
                     }
                 }
             }
@@ -259,10 +273,7 @@ void show_unchecked(struct node_s *list, bool is_fut, const char *title)
                 printf("\e[32m%s\e[0m=\e[35m%s\e[0m ", attrs->name, attrs->value);
             }
             printf("\n");
-            //return;
-        } /*else
-            printf("\e[33m%s \e[32mcheckedOK-%s\e[0m sn%d D%d %s %s\n", context_str, title, list->serialNumber, list->depth, nodeTypeToString(list->node_type), list->name);
-            */
+        }
     }
 }
 
@@ -328,7 +339,7 @@ typedef struct {
     bool use_strstr;    // false = strcmp entire value
     unsigned value_length;  // 0=use strcmp, else use strncmp
     const char *name;
-} required_attribute_t;
+} must_match_attrib_t;
 
 
 char control_build[32];
@@ -339,23 +350,25 @@ char fut_cconfiguration_name[64];
 unsigned builds_idx;
 char builds[MAX_BUILDS][32];
 
-#define N_REQUIRED_ATTRIB       2
+#define MAX_MUST_MATCH_ATTRIBS       2
 int check_fut(struct node_s *ctrlList, struct node_s *fut)
 {
     static struct node_s *control_context[MAX_DEPTH];
     static struct node_s *fut_context[MAX_DEPTH];
     unsigned cnt = 0;
     int ret = 0;
-    required_attribute_t required_attribute[N_REQUIRED_ATTRIB];
+    must_match_attrib_t must_match_attrib[MAX_MUST_MATCH_ATTRIBS];
     const char *required_element_name = NULL;
     const char *reference_instanceId = NULL;
     char control_context_str[256];
+    bool futChecked;
+    bool openTextValue = false;
 
-    for (unsigned n = 0; n < N_REQUIRED_ATTRIB; n++) {
-        required_attribute[n].value_length = 0;
-        required_attribute[n].value_[required_attribute[n].value_length] = 0;
-        required_attribute[n].use_strstr = false;
-        required_attribute[n].name = NULL;
+    for (unsigned n = 0; n < MAX_MUST_MATCH_ATTRIBS; n++) {
+        must_match_attrib[n].value_length = 0;
+        must_match_attrib[n].value_[must_match_attrib[n].value_length] = 0;
+        must_match_attrib[n].use_strstr = false;
+        must_match_attrib[n].name = NULL;
     }
 
     control_context[ctrlList->depth] = ctrlList;
@@ -375,19 +388,19 @@ int check_fut(struct node_s *ctrlList, struct node_s *fut)
                     printf("got-ctl-id ");
                     fflush(stdout);
                 } else if (strcmp(ctl_attrs->name, "moduleId") == 0) {
-                    strcpy(required_attribute[0].value_, ctl_attrs->value);
-                    required_attribute[0].value_length = strlen(ctl_attrs->value);
-                    required_attribute[0].name = "moduleId";
+                    strcpy(must_match_attrib[0].value_, ctl_attrs->value);
+                    must_match_attrib[0].value_length = strlen(ctl_attrs->value);
+                    must_match_attrib[0].name = "moduleId";
                     if (control_id_value != NULL && strcmp("org.eclipse.cdt.core.settings", ctl_attrs->value) == 0) {
                         int len;
                         printf("control_id_value:%s\n", control_id_value);
                         fflush(stdout);
                         len = strlen(control_id_value);
-                        required_attribute[1].name = "id";
-                        strcpy(required_attribute[1].value_, control_id_value);
+                        must_match_attrib[1].name = "id";
+                        strcpy(must_match_attrib[1].value_, control_id_value);
                         while (control_id_value[len] != '.' && len > 0)
                             len--;
-                        required_attribute[1].value_length = len;
+                        must_match_attrib[1].value_length = len;
                     }
                 }
             }
@@ -398,32 +411,32 @@ int check_fut(struct node_s *ctrlList, struct node_s *fut)
                     fut_cconfiguration_id[0] = 0;
                     while (ctl_attrs->value[len] != '.' && len > 0)
                         len--;
-                    strncpy(required_attribute[0].value_, ctl_attrs->value, len);
-                    required_attribute[0].value_length = len;
-                    required_attribute[0].value_[required_attribute[0].value_length] = 0;
-                    required_attribute[0].name = "id";
+                    strncpy(must_match_attrib[0].value_, ctl_attrs->value, len);
+                    must_match_attrib[0].value_length = len;
+                    must_match_attrib[0].value_[must_match_attrib[0].value_length] = 0;
+                    must_match_attrib[0].name = "id";
                 }
             }
         } else if (strcmp(ctrlList->name, "extension") == 0) {
             for (struct attr_node_s *ctl_attrs = ctrlList->attrs; ctl_attrs != NULL; ctl_attrs = ctl_attrs->next) {
                 if (strcmp(ctl_attrs->name, "point") == 0) {
-                    strcpy(required_attribute[0].value_, ctl_attrs->value);
-                    required_attribute[0].value_length = strlen(ctl_attrs->value);
-                    required_attribute[0].name = "point";
+                    strcpy(must_match_attrib[0].value_, ctl_attrs->value);
+                    must_match_attrib[0].value_length = strlen(ctl_attrs->value);
+                    must_match_attrib[0].name = "point";
                 } else if (strcmp(ctl_attrs->name, "id") == 0) {
-                    strcpy(required_attribute[1].value_, ctl_attrs->value);
-                    required_attribute[1].value_length = strlen(ctl_attrs->value);
-                    required_attribute[1].name = "id";
+                    strcpy(must_match_attrib[1].value_, ctl_attrs->value);
+                    must_match_attrib[1].value_length = strlen(ctl_attrs->value);
+                    must_match_attrib[1].name = "id";
                 }
             }
         } else if (strcmp(ctrlList->name, "configuration") == 0) {
-            strcpy(required_attribute[1].value_, fut_cconfiguration_id);
-            required_attribute[1].value_length = strlen(fut_cconfiguration_id);
-            required_attribute[1].name = "id";
+            strcpy(must_match_attrib[1].value_, fut_cconfiguration_id);
+            must_match_attrib[1].value_length = strlen(fut_cconfiguration_id);
+            must_match_attrib[1].name = "id";
         } else if (strcmp(ctrlList->name, "folderInfo") == 0) {
-            strcpy(required_attribute[1].value_, fut_cconfiguration_id);
-            required_attribute[1].value_length = strlen(fut_cconfiguration_id);
-            required_attribute[1].name = "id";
+            strcpy(must_match_attrib[1].value_, fut_cconfiguration_id);
+            must_match_attrib[1].value_length = strlen(fut_cconfiguration_id);
+            must_match_attrib[1].name = "id";
             for (struct attr_node_s *ctl_attrs = ctrlList->attrs; ctl_attrs != NULL; ctl_attrs = ctl_attrs->next) {
                 int idx, build_end, build_start;
                 if (strcmp(ctl_attrs->name, "id") != 0)
@@ -445,35 +458,33 @@ int check_fut(struct node_s *ctrlList, struct node_s *fut)
                     return -1;
                 }
                 strcpy(builds[builds_idx++], control_build);
-                //printf("control_build \"%s\"\n", control_build);
-                //return -1;
             }
         } else if (strcmp(ctrlList->name, "toolChain") == 0) {
-            strcpy(required_attribute[0].value_, control_build);
-            required_attribute[0].use_strstr = true;
-            required_attribute[0].name = "id";
+            strcpy(must_match_attrib[0].value_, control_build);
+            must_match_attrib[0].use_strstr = true;
+            must_match_attrib[0].name = "id";
         } else if (strcmp(ctrlList->name, "option") == 0 || strcmp(ctrlList->name, "tool") == 0 || strcmp(ctrlList->name, "inputType") == 0) {
             for (struct attr_node_s *ctl_attrs = ctrlList->attrs; ctl_attrs != NULL; ctl_attrs = ctl_attrs->next) {
                 if (strcmp(ctl_attrs->name, "superClass") == 0) {
-                    required_attribute[0].name = "superClass";
-                    strcpy(required_attribute[0].value_, ctl_attrs->value);
-                    required_attribute[0].value_length = strlen(ctl_attrs->value);
+                    must_match_attrib[0].name = "superClass";
+                    strcpy(must_match_attrib[0].value_, ctl_attrs->value);
+                    must_match_attrib[0].value_length = 0;  /* must match entire value */
                 }
             }
         } else if (strcmp(ctrlList->name, "additionalInput") == 0) {
             for (struct attr_node_s *ctl_attrs = ctrlList->attrs; ctl_attrs != NULL; ctl_attrs = ctl_attrs->next) {
                 if (strcmp(ctl_attrs->name, "kind") == 0) {
-                    required_attribute[0].name = "kind";
-                    strcpy(required_attribute[0].value_, ctl_attrs->value);
-                    required_attribute[0].value_length = strlen(ctl_attrs->value);
+                    must_match_attrib[0].name = "kind";
+                    strcpy(must_match_attrib[0].value_, ctl_attrs->value);
+                    must_match_attrib[0].value_length = strlen(ctl_attrs->value);
                 } else if (strcmp(ctl_attrs->name, "paths") == 0) {
-                    required_attribute[1].name = "paths";
-                    strcpy(required_attribute[1].value_, ctl_attrs->value);
-                    required_attribute[1].value_length = strlen(ctl_attrs->value);
+                    must_match_attrib[1].name = "paths";
+                    strcpy(must_match_attrib[1].value_, ctl_attrs->value);
+                    must_match_attrib[1].value_length = strlen(ctl_attrs->value);
                 }
             }
         } else if (strcmp(ctrlList->name, "scannerConfigBuildInfo") == 0) {
-            required_attribute[0].name = "instanceId";
+            must_match_attrib[0].name = "instanceId";
             for (struct attr_node_s *ctl_attrs = ctrlList->attrs; ctl_attrs != NULL; ctl_attrs = ctl_attrs->next) {
                 if (strcmp(ctl_attrs->name, "instanceId") == 0) {
                     const char *ptr = strchr(ctl_attrs->value, ';');
@@ -485,13 +496,13 @@ int check_fut(struct node_s *ctrlList, struct node_s *fut)
                         while (*ptr != '.' && ptr > ctl_attrs->value)
                             ptr--;
                         len = ptr - ctl_attrs->value;
-                        strncpy(required_attribute[0].value_, ctl_attrs->value, len);
-                        required_attribute[0].value_[len] = 0;
-                        required_attribute[0].value_length = len;
-                        printf("\nreqVal %s\n", required_attribute[0].value_);
+                        strncpy(must_match_attrib[0].value_, ctl_attrs->value, len);
+                        must_match_attrib[0].value_[len] = 0;
+                        must_match_attrib[0].value_length = len;
+                        printf("\nreqVal %s\n", must_match_attrib[0].value_);
                         for (unsigned n = 0; n < builds_idx; n++) {
-                            printf("try build %s ctrl-attrib %s...\n", builds[n], required_attribute[0].value_);
-                            if (strstr(required_attribute[0].value_, builds[n]) != NULL) {
+                            printf("try build %s ctrl-attrib %s...\n", builds[n], must_match_attrib[0].value_);
+                            if (strstr(must_match_attrib[0].value_, builds[n]) != NULL) {
                                 for (unsigned x = 0; x < _fut_instance_id_idx; x++) {
                                     printf("try build %s fut_instance_id %s\n", builds[n], _fut_instance_id[x]);
                                     if (strstr(_fut_instance_id[x], builds[n]) != NULL) {
@@ -511,38 +522,43 @@ int check_fut(struct node_s *ctrlList, struct node_s *fut)
             }
         } else if (strcmp(ctrlList->name, "targetPlatform") == 0 || strcmp(ctrlList->name, "builder") == 0 ) {
             if (strncmp(CCS, fut_cconfiguration_id, strlen(CCS)) == 0) {
-                required_attribute[0].use_strstr = true;
-                required_attribute[0].name = "id";
-                strcpy(required_attribute[0].value_, control_build);
-                required_attribute[0].value_length = strlen(control_build);
+                must_match_attrib[0].use_strstr = true;
+                must_match_attrib[0].name = "id";
+                strcpy(must_match_attrib[0].value_, control_build);
+                must_match_attrib[0].value_length = strlen(control_build);
             }
         }
     } // ..if (XML_NODE_TYPE_START_ELEMENT == ctrlList->node_type)
+    else if (XML_NODE_TYPE_TEXT == ctrlList->node_type) {
+        printf(" text-control=%s ", ctrlList->value);
+        if (strcmp(control_context_str, "projectDescription-name") == 0)
+            openTextValue = true;
+    }
 
     
-    for (unsigned n = 0; n < N_REQUIRED_ATTRIB; n++) {
-        if (required_attribute[n].value_[0] != 0) {
+    for (unsigned n = 0; n < MAX_MUST_MATCH_ATTRIBS; n++) {
+        if (must_match_attrib[n].value_[0] != 0) {
             char my_value[256];
-            if (required_attribute[n].value_length == 0)
-                strcpy(my_value, required_attribute[n].value_);
+            if (must_match_attrib[n].value_length == 0)
+                strcpy(my_value, must_match_attrib[n].value_);
             else {
-                strncpy(my_value, required_attribute[n].value_, required_attribute[n].value_length);
-                my_value[required_attribute[n].value_length] = 0;
+                strncpy(my_value, must_match_attrib[n].value_, must_match_attrib[n].value_length);
+                my_value[must_match_attrib[n].value_length] = 0;
             }
-            printf("[%s %s (%d) %s] ", required_attribute[n].name, required_attribute[n].use_strstr ? "~=" : "=", required_attribute[n].value_length, my_value);
+            printf("[must-match %s %s (%d) %s] ", must_match_attrib[n].name, must_match_attrib[n].use_strstr ? "~=" : "=", must_match_attrib[n].value_length, my_value);
         }
     }
 
-    const char *ctrl_attrib_valueType_ = NULL;
+    const char *ctrl_attrib_valueType = NULL;
     const char *ctrl_attrib_value = NULL;
     for (struct attr_node_s *ctl_attrs = ctrlList->attrs; ctl_attrs != NULL; ctl_attrs = ctl_attrs->next) {
-            //strcpy(ctrl_attrib_valueType, ctl_attrs->value);
         if (strcmp(ctl_attrs->name, "valueType") == 0)
-            ctrl_attrib_valueType_ = ctl_attrs->value;
+            ctrl_attrib_valueType = ctl_attrs->value;
         if (strcmp(ctl_attrs->name, "value") == 0)
             ctrl_attrib_value = ctl_attrs->value;
     }
 
+    futChecked = false;
     for (struct node_s *futList = fut; futList != NULL; futList = futList->next) {
         char fut_context_str[256];
         unsigned failed_attributes = 0;
@@ -565,32 +581,28 @@ int check_fut(struct node_s *ctrlList, struct node_s *fut)
                 continue;
         }
 
-        for (unsigned n = 0; n < N_REQUIRED_ATTRIB; n++) {
-            //unsigned facnt;
+        for (unsigned n = 0; n < MAX_MUST_MATCH_ATTRIBS; n++) {
             bool has_attribute;
-            if (required_attribute[n].name == NULL)
+            if (must_match_attrib[n].name == NULL)
                 continue;
             has_attribute = false;
-            //facnt = 0;
             for (struct attr_node_s *fut_attrs = futList->attrs; fut_attrs != NULL; fut_attrs = fut_attrs->next) {
-                //facnt++;
-                if (strcmp(fut_attrs->name, required_attribute[n].name) == 0) {
+                if (strcmp(fut_attrs->name, must_match_attrib[n].name) == 0) {
                     has_attribute = true;
-                    if (required_attribute[n].use_strstr) {
-                        if (strstr(fut_attrs->value, required_attribute[n].value_) == NULL)
+                    if (must_match_attrib[n].use_strstr) {
+                        if (strstr(fut_attrs->value, must_match_attrib[n].value_) == NULL)
                             failed_attributes++;
                     } else {
-                        if (required_attribute[n].value_length == 0) {
-                            if (strcmp(fut_attrs->value, required_attribute[n].value_) != 0)
+                        if (must_match_attrib[n].value_length == 0) {
+                            if (strcmp(fut_attrs->value, must_match_attrib[n].value_) != 0)
                                 failed_attributes++;
                         } else {
-                            if (strncmp(fut_attrs->value, required_attribute[n].value_, required_attribute[n].value_length) != 0)
+                            if (strncmp(fut_attrs->value, must_match_attrib[n].value_, must_match_attrib[n].value_length) != 0)
                                 failed_attributes++;
                         }
                     }
                 }
             }
-            //printf("facnt%d ", facnt);
             if (!has_attribute)
                 failed_attributes++;
         }
@@ -606,7 +618,6 @@ int check_fut(struct node_s *ctrlList, struct node_s *fut)
                     char _fut_cconfiguration_superClass[32];
                     int len = strlen(fut_attrs->value);
                     strcpy(fut_cconfiguration_id, fut_attrs->value);
-                    //strcpy(fut_instance_id[fut_instance_id_idx], fut_attrs->value);
                     while (fut_attrs->value[len] != '.' && len > 0)
                         len--;
                     strncpy(_fut_cconfiguration_superClass, fut_attrs->value, len);
@@ -620,9 +631,9 @@ int check_fut(struct node_s *ctrlList, struct node_s *fut)
             strcmp(ctrlList->name, futList->name) == 0)
         {
             if (futList->node_type == XML_NODE_TYPE_PI) {
-                if (strcmp(ctrlList->name, "fileVersion") == 0)
+                if (strcmp(ctrlList->name, "fileVersion") == 0) {
                     futList->checked = true;    // value same
-                else {
+                } else {
                     printf("line %d PI value %s\n", __LINE__, futList->name);
                     return -1;
                 }
@@ -632,8 +643,16 @@ int check_fut(struct node_s *ctrlList, struct node_s *fut)
                     prev_fut_node_context->checked = true; // start ok
                 }
             } else if (futList->node_type == XML_NODE_TYPE_START_ELEMENT) {
-                if (ctrlList->empty && futList->empty)
+                if (ctrlList->empty && futList->empty) {
                     futList->checked = true;    // both empty element
+                }
+            } else if (futList->node_type == XML_NODE_TYPE_TEXT && !openTextValue) {
+                printf("text-fut=%s ", futList->value);
+                if (strcmp(ctrlList->value, futList->value) == 0)
+                    printf("***");
+                else
+                    continue;   // mismatched text
+                printf(" ");
             }
 
             char fut_attrib_id[192];
@@ -645,6 +664,9 @@ int check_fut(struct node_s *ctrlList, struct node_s *fut)
 
             unsigned a_ok = 0;
             for (struct attr_node_s *ctl_attrs = ctrlList->attrs; ctl_attrs != NULL; ctl_attrs = ctl_attrs->next) {
+                bool has_defaultValue = false;
+                bool ctrl_attrib_ok = false;
+                printf("checkAttrib-%s ", ctl_attrs->name);
                 for (struct attr_node_s *fut_attrs = futList->attrs; fut_attrs != NULL; fut_attrs = fut_attrs->next) {
                     const char *control_value;
                     int len;
@@ -655,6 +677,10 @@ int check_fut(struct node_s *ctrlList, struct node_s *fut)
                         strcpy(fut_attrib_superClass, fut_attrs->value);
                     else if (strcmp(fut_attrs->name, "value") == 0)
                         strcpy(fut_attrib_value, fut_attrs->value);
+                    else if (strcmp(fut_attrs->name, "defaultValue") == 0) {
+                        has_defaultValue = true;
+                        strcpy(fut_attrib_value, fut_attrs->value);
+                    }
 
                     if (strcmp(ctl_attrs->name, fut_attrs->name) != 0)
                         continue;
@@ -669,6 +695,7 @@ int check_fut(struct node_s *ctrlList, struct node_s *fut)
 
                     if (openValue) {
                         a_ok++;
+                        ctrl_attrib_ok = true;
                         continue;
                     }
 
@@ -719,7 +746,7 @@ int check_fut(struct node_s *ctrlList, struct node_s *fut)
                             strcpy(fut_cconfiguration_name, fut_attrs->value);
                         }
                         control_value = NULL;   /* name values dont care */
-                    } else if ((strcmp(ctl_attrs->name, "value") == 0 || strcmp(ctl_attrs->name, "defaultValue") == 0) && ctrl_attrib_valueType_ != NULL && strcmp(ctrl_attrib_valueType_, "enumerated") == 0) {
+                    } else if ((strcmp(ctl_attrs->name, "value") == 0 || strcmp(ctl_attrs->name, "defaultValue") == 0) && ctrl_attrib_valueType != NULL && strcmp(ctrl_attrib_valueType, "enumerated") == 0) {
                         control_value = NULL;   /* enumerated (default)value checked by containing superClass */
                     } else if (/*strcmp(ctrlList->name, "listOptionValue") == 0 &&*/ strcmp(ctl_attrs->name, "value") == 0) {
                         control_value = NULL;
@@ -740,12 +767,22 @@ int check_fut(struct node_s *ctrlList, struct node_s *fut)
                             }
                             printf("\n");
                             return -1;
-                        } else
+                        } else {
                             a_ok++;
+                            ctrl_attrib_ok = true;
+                        }
+                    } else {
+                        ctrl_attrib_ok = true;
                     }
                 } // ..fut attribute iterator
 
+                if (!ctrl_attrib_ok && strcmp(ctl_attrs->name, "value") == 0 && has_defaultValue)
+                    ctrl_attrib_ok = true;  // defaultValue is permitted to stand in place of value
 
+                if (!ctrl_attrib_ok) {
+                    printf("\e[31mcontrol-attribute-fail\e[0m %s=%s\n", ctl_attrs->name, ctl_attrs->value);
+                    return -1;
+                }
             } // ..control attribute iterator
 
             if (fut_attrib_superClass[0] != 0) {
@@ -757,10 +794,10 @@ int check_fut(struct node_s *ctrlList, struct node_s *fut)
                 }
             }
 
-            if (ctrl_attrib_valueType_ != NULL) {
+            if (ctrl_attrib_valueType != NULL) {
                 /* control file can have valueType without value: in that case, not checking */
                 /* TODO: also check defaultValue */
-                if (ctrl_attrib_value != NULL && strcmp(ctrl_attrib_valueType_, "enumerated") == 0) {
+                if (ctrl_attrib_value != NULL && strcmp(ctrl_attrib_valueType, "enumerated") == 0) {
                     const char *valuePrefix = fut_attrib_superClass;
 
                     for (unsigned n = 0; enumeration_exceptions[n].superClass_prefix != NULL; n++) {
@@ -782,18 +819,53 @@ int check_fut(struct node_s *ctrlList, struct node_s *fut)
                 printf("a_ok:%d ", a_ok);
 
             futList->checked = true;
+            futChecked = true;
         }
     } // ..fut node iterator
 
+    if (futChecked) {
+        /* if was validated in fut, then mark it off in control, later unvalidated control elements can be shown */
+        ctrlList->checked = true;
+
+    } else if (ctrlList->node_type == XML_NODE_TYPE_END_OF_ELEMENT) {
+        printf("optional-endOfElement ");
+    } else {
+        bool optional = false;
+        for (unsigned n = 0; optionalElements[n] != NULL; n++) {
+            if (strcmp(ctrlList->name, optionalElements[n]) == 0) {
+                optional = true;
+                printf("optionalElement-%s ", optionalElements[n]);
+                break;
+            }
+        }
+
+        if (!optional) {
+            for (struct attr_node_s *ctl_attrs = ctrlList->attrs; ctl_attrs != NULL; ctl_attrs = ctl_attrs->next) {
+                if (strcmp(ctl_attrs->name, "superClass") == 0) {
+                    for (unsigned n = 0; optionalSuperClasses[n] != NULL; n++) {
+                        if (strcmp(ctl_attrs->value, optionalSuperClasses[n]) == 0) {
+                            optional = true;
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+
+        if (!optional) {
+            printf("\n%s \e[31mline %d not-futChecked\e[0m ", control_context_str, __LINE__);
+            ret = -1;
+        }
+    }
+
     return ret;
-}
+} // ..check_fut()
 
 
 int compare(struct node_s *control, struct node_s *fut)
 {
     int ret = 0;
 
-    //fut_instance_id_idx = 0;
     control_build[0] = 0;
     fut_cconfiguration_id[0] = 0;
     fut_cconfiguration_name[0] = 0;
@@ -802,7 +874,7 @@ int compare(struct node_s *control, struct node_s *fut)
         builds[n][0] = 0;
 
     for (struct node_s *ctrlList = control; ctrlList != NULL; ctrlList = ctrlList->next) {
-        printf("compare(D%d %s %s) ", ctrlList->depth, nodeTypeToString(ctrlList->node_type), ctrlList->name);
+        printf("%d compare(D%d %s %s) ", ctrlList->serialNumber, ctrlList->depth, nodeTypeToString(ctrlList->node_type), ctrlList->name);
         if (check_fut(ctrlList, fut) < 0) {
             ret = -1;
             break;
@@ -810,7 +882,6 @@ int compare(struct node_s *control, struct node_s *fut)
 
         if (ctrlList->node_type == XML_NODE_TYPE_END_OF_ELEMENT) {
             if (strcmp(ctrlList->name, "cconfiguration") == 0) {
-                //fut_instance_id_idx++;
                 control_build[0] = 0;
                 fut_cconfiguration_id[0] = 0;
                 fut_cconfiguration_name[0] = 0;
@@ -886,6 +957,7 @@ int main(int argc, char *argv[])
 
     printf("##################### unchecked... ############################\n");
     show_unchecked(_fut, true, "fut");
+    show_unchecked(_control, false, "control");
 
     return ret;
 }

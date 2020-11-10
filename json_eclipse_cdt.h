@@ -59,10 +59,15 @@ void put_id(const char *in, char *out);
 /* callbacks: */
 void write_natures(void);
 int get_cconfiguration_id(bool, const char*, char*, char*);
-int put_configuration(bool, instance_t*, const char *, const char *, const char *);
+int _put_configuration(bool, instance_t*, const char *, const char *, const char *);
 void put_listOptionValue(xmlTextWriterPtr, bool, const char *);
+void put_additionalInput(xmlTextWriterPtr, const char*, const char *);
 void put_other_storageModules(const instance_t *, const instance_t *);
 int cproject_init(void);
-
+void put_project_other_builders(void);
+void put_scannerConfiguration(const instance_t *debugInstance, const instance_t *releaseInstance, const char *is_problemReportingEnabled);
+void put_other_cconfiguration_storageModules(bool);
+int unbuilt_source(const char *, const char *);
+void cat_additional_exclude_directories(char *);
 
 

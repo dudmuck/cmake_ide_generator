@@ -217,7 +217,7 @@ int fread_(char *buffer, unsigned len, FILE *fp)
         unsigned to_read = len - n;
         ret = read(fd, ptr, to_read);
         if (ret < 1)
-            return ret;
+            return n;
         n += ret;
         ptr += ret;
     }

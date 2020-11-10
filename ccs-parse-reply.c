@@ -169,7 +169,7 @@ int cproject_init()
     return ret;
 }
 
-int put_configuration(bool debugBuild, instance_t *instance, const char *cconfiguration_superClass, const char *Board, const char *Mcu)
+int _put_configuration(bool debugBuild, instance_t *instance, const char *cconfiguration_superClass, const char *Board, const char *Mcu)
 {
     int ret = 0;
     char parent_str[96];
@@ -217,7 +217,6 @@ int put_configuration(bool debugBuild, instance_t *instance, const char *cconfig
     strcpy(linker_parent_str, parent_str);
 
 
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"configuration");
     xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"artifactExtension", (xmlChar*)artifactExtension);
     xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"artifactName", (xmlChar*)from_codemodel.artifactName);
     //xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"artifactName", (xmlChar*) "${ProjName}");
@@ -734,17 +733,6 @@ int put_configuration(bool debugBuild, instance_t *instance, const char *cconfig
 
     xmlTextWriterEndElement(cproject_writer); // folderInfo
 
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"sourceEntries");
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"entry");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"excluding", (xmlChar*)"src|CMakeFiles");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"flags", (xmlChar*)"VALUE_WORKSPACE_PATH|RESOLVED");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"kind", (xmlChar*)"sourcePath");
-    xmlTextWriterWriteAttribute(cproject_writer, name, (xmlChar*)"");
-    xmlTextWriterEndElement(cproject_writer); // entry 
-    xmlTextWriterEndElement(cproject_writer); // sourceEntries
-
-    xmlTextWriterEndElement(cproject_writer); // configuration
-
     return ret;
 } // ..put_configuration()
 
@@ -841,6 +829,11 @@ int ccsproject_start(bool force)
 
     return 0;
 }
+
+void put_project_other_builders() { }
+void put_other_cconfiguration_storageModules(bool debugBuild) { }
+int unbuilt_source(const char *source_path, const char *path) { return 0; }
+void cat_additional_exclude_directories(char *str) { }
 
 int main(int argc, char *argv[])
 {

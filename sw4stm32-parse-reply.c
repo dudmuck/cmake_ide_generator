@@ -2,7 +2,7 @@
 
 const char * const GENMAKEBUILDER_TRIGGERS = "clean,full,incremental,";
 const char * const GENMAKEBUILDER_ARGUMENTS = NULL;
-const char * const SCANNERCONFIGBUILDER_TRIGGERS = NULL;
+const char * const SCANNERCONFIGBUILDER_TRIGGERS = "full,incremental,";
 const char * const SCANNERCONFIGBUILDER_ARGUMENTS = "";
 const char * const CDT_CORE_SETTINGS_CONFIGRELATIONS = NULL;
 const char * const BINARY_PARSER = "org.eclipse.cdt.core.ELF";
@@ -16,66 +16,6 @@ const char * const ERROR_PARSERS[] = {
 };
 
 const char * const TITLE = "fr.ac6.managedbuild";
-
-void put_scannerConfiguration(const instance_t *debugInstance, const instance_t *releaseInstance)
-{
-    xmlTextWriterStartElement(cproject_writer, autodiscovery);
-    xmlTextWriterWriteAttribute(cproject_writer, enabled, (xmlChar*)"true");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"problemReportingEnabled", (xmlChar*)"");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"selectedProfileId", (xmlChar*)"");
-    xmlTextWriterEndElement(cproject_writer); // autodiscovery
-
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"scannerConfigBuildInfo");
-    {
-        unsigned len = 12;  // semicolons
-        len += strlen(debugInstance->config_gnu_cross_exe);
-        len += strlen(debugInstance->config_gnu_cross_exe);
-        len += strlen(debugInstance->tool_gnu_cross_c_compiler);
-        len += strlen(debugInstance->tool_gnu_cross_c_compiler_input);
-        char *str = malloc(len);
-        strcpy(str, debugInstance->config_gnu_cross_exe);
-        strcat(str, ";");
-        strcat(str, debugInstance->config_gnu_cross_exe);
-        strcat(str, ".;");
-        strcat(str, debugInstance->tool_gnu_cross_c_compiler);
-        strcat(str, ";");
-        strcat(str, debugInstance->tool_gnu_cross_c_compiler_input);
-        xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"instanceId", (xmlChar*)str);
-        free(str);
-    }
-    xmlTextWriterStartElement(cproject_writer, autodiscovery);
-    xmlTextWriterWriteAttribute(cproject_writer, enabled, (xmlChar*)"true");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"problemReportingEnabled", (xmlChar*)"");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"selectedProfileId", (xmlChar*)"");
-    xmlTextWriterEndElement(cproject_writer); // autodiscovery
-    xmlTextWriterEndElement(cproject_writer); // scannerConfigBuildInfo 
-
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"scannerConfigBuildInfo");
-    {
-        unsigned len = 12;  // semicolons
-        len += strlen(releaseInstance->config_gnu_cross_exe);
-        len += strlen(releaseInstance->config_gnu_cross_exe);
-        len += strlen(releaseInstance->tool_gnu_cross_c_compiler);
-        len += strlen(releaseInstance->tool_gnu_cross_c_compiler_input);
-        char *str = malloc(len);
-        strcpy(str, releaseInstance->config_gnu_cross_exe);
-        strcat(str, ";");
-        strcat(str, releaseInstance->config_gnu_cross_exe);
-        strcat(str, ".;");
-        strcat(str, releaseInstance->tool_gnu_cross_c_compiler);
-        strcat(str, ";");
-        strcat(str, releaseInstance->tool_gnu_cross_c_compiler_input);
-        xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"instanceId", (xmlChar*)str);
-        free(str);
-    }
-
-    xmlTextWriterStartElement(cproject_writer, autodiscovery);
-    xmlTextWriterWriteAttribute(cproject_writer, enabled, (xmlChar*)"true");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"problemReportingEnabled", (xmlChar*)"");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"selectedProfileId", (xmlChar*)"");
-    xmlTextWriterEndElement(cproject_writer); // autodiscovery
-    xmlTextWriterEndElement(cproject_writer); // scannerConfigBuildInfo 
-}
 
 void put_other_storageModules(const instance_t *debugInstance, const instance_t *releaseInstance)
 {
@@ -98,7 +38,7 @@ void put_other_storageModules(const instance_t *debugInstance, const instance_t 
 
     xmlTextWriterStartElement(cproject_writer, storageModule);
     xmlTextWriterWriteAttribute(cproject_writer, moduleId, (xmlChar*)"scannerConfiguration");
-    put_scannerConfiguration(debugInstance, releaseInstance);
+    put_scannerConfiguration(debugInstance, releaseInstance, "");
     xmlTextWriterEndElement(cproject_writer); // storageModule
 
     xmlTextWriterStartElement(cproject_writer, storageModule);
@@ -266,7 +206,7 @@ void get_c_dialect_value_from_fragment(const char *in, const char **out)
         *out = "c90";
 }
 
-int put_configuration(bool debugBuild, instance_t *instance, const char *cconfiguration_superClass, const char *Board, const char *Mcu)
+int _put_configuration(bool debugBuild, instance_t *instance, const char *cconfiguration_superClass, const char *Board, const char *Mcu)
 {
     int ret = 0;
     char linkerScript[128];
@@ -296,7 +236,6 @@ int put_configuration(bool debugBuild, instance_t *instance, const char *cconfig
         }
     }
 
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"configuration");
     xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"artifactExtension", (xmlChar*)artifactExtension);
     xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"artifactName", (xmlChar*)from_codemodel.artifactName);
     xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"buildArtefactType", (xmlChar*)"org.eclipse.cdt.build.core.buildArtefactType.exe" );
@@ -755,16 +694,6 @@ int put_configuration(bool debugBuild, instance_t *instance, const char *cconfig
     xmlTextWriterEndElement(cproject_writer); // toolChain
     xmlTextWriterEndElement(cproject_writer); // folderInfo
 
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"sourceEntries");
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"entry");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"excluding", (xmlChar*)"CMakeFiles");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"flags", (xmlChar*)"VALUE_WORKSPACE_PATH|RESOLVED");
-    xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"kind", (xmlChar*)"sourcePath");
-    xmlTextWriterWriteAttribute(cproject_writer, name, (xmlChar*)"");
-    xmlTextWriterEndElement(cproject_writer); // entry 
-    xmlTextWriterEndElement(cproject_writer); // sourceEntries
-
-    xmlTextWriterEndElement(cproject_writer); // configuration
     return ret;
 }
 
@@ -795,6 +724,10 @@ void write_natures()
     xmlTextWriterWriteElement(project_writer, nature, (xmlChar*)"org.eclipse.cdt.core.cnature");
 }
 
+void put_project_other_builders() { }
+void put_other_cconfiguration_storageModules(bool debugBuild) { }
+int unbuilt_source(const char *source_path, const char *path) { return 0;}
+void cat_additional_exclude_directories(char *str) { }
 
 int main(int argc, char *argv[])
 {
