@@ -5,7 +5,10 @@ const char * const GENMAKEBUILDER_ARGUMENTS = NULL;
 const char * const SCANNERCONFIGBUILDER_TRIGGERS = "full,incremental,";
 const char * const SCANNERCONFIGBUILDER_ARGUMENTS = "";
 const char * const CDT_CORE_SETTINGS_CONFIGRELATIONS = NULL;
-const char * const BINARY_PARSER = "org.eclipse.cdt.core.ELF";
+const char * const BINARY_PARSERS[] = {
+    "org.eclipse.cdt.core.ELF",
+    NULL
+};
 const char * const ERROR_PARSERS[] = {
     "org.eclipse.cdt.core.GASErrorParser",
     "org.eclipse.cdt.core.GmakeErrorParser",
@@ -18,10 +21,14 @@ const char * const ERROR_PARSERS[] = {
 
 const char * const TITLE = "com.st.stm32cube.ide.mcu.gnu.managedbuild";
 
-void put_other_storageModules(const instance_t *debugInstance, const instance_t *releaseInstance)
+void put_other_storageModules()
 {
     char str[128];
     char us_str[16];
+
+    xmlTextWriterStartElement(cproject_writer, storageModule);
+    xmlTextWriterWriteAttribute(cproject_writer, moduleId, (xmlChar*)"org.eclipse.cdt.core.pathentry");
+    xmlTextWriterEndElement(cproject_writer); // storageModule
 
     xmlTextWriterStartElement(cproject_writer, storageModule);
     xmlTextWriterWriteAttribute(cproject_writer, moduleId, (xmlChar*)"cdtBuildSystem");
@@ -38,7 +45,7 @@ void put_other_storageModules(const instance_t *debugInstance, const instance_t 
 
     xmlTextWriterStartElement(cproject_writer, storageModule);
     xmlTextWriterWriteAttribute(cproject_writer, moduleId, (xmlChar*)"scannerConfiguration");
-    put_scannerConfiguration(debugInstance, releaseInstance, "true");
+    put_scannerConfiguration("true");
     xmlTextWriterEndElement(cproject_writer); // storageModule
 
     xmlTextWriterStartElement(cproject_writer, storageModule);
@@ -63,6 +70,7 @@ void put_compiler_debug_level(char debugging_level, const char *parent_str)
     char str[256];
 
     xmlTextWriterStartElement(cproject_writer, option);
+    xmlTextWriterWriteAttribute(cproject_writer, name, (xmlChar*)"Debug level");
     put_id(parent_str, id_str);
     xmlTextWriterWriteAttribute(cproject_writer, id, (xmlChar*)id_str);
     xmlTextWriterWriteAttribute(cproject_writer, superClass, (xmlChar*)parent_str);
@@ -170,7 +178,7 @@ void get_c_dialect_value_from_fragment(const char *in, const char **out)
         *out = "gccdefault";
 }
 
-int _put_configuration(bool debugBuild, instance_t *instance, const char *cconfiguration_superClass, const char *Board, const char *Mcu)
+int _put_configuration(bool debugBuild, const char *ccfg_id, const char *cconfiguration_superClass, const char *Board, const char *Mcu, struct node_s *instance_node)
 {
     int ret = 0;
     char id_str[128];
@@ -204,14 +212,17 @@ int _put_configuration(bool debugBuild, instance_t *instance, const char *cconfi
     xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"description", (xmlChar*)"");
     /* stm32cubeIDE doesnt like "errorParsers" */
     //xmlTextWriterWriteAttribute(cproject_writer, "errorParsers", "org.eclipse.cdt.core.GASErrorParser;org.eclipse.cdt.core.GmakeErrorParser;org.eclipse.cdt.core.GLDErrorParser;org.eclipse.cdt.core.CWDLocator;org.eclipse.cdt.core.GCCErrorParser");
-    xmlTextWriterWriteAttribute(cproject_writer, id, (xmlChar*)instance->config_gnu_cross_exe);
+    xmlTextWriterWriteAttribute(cproject_writer, id, (xmlChar*)ccfg_id);
     xmlTextWriterWriteAttribute(cproject_writer, name, (xmlChar*)Build);
     //xmlTextWriterWriteAttribute(cproject_writer, "optionalBuildProperties", "org.eclipse.cdt.docker.launcher.containerbuild.property.volumes=,org.eclipse.cdt.docker.launcher.containerbuild.property.selectedvolumes=");
     xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"parent", (xmlChar*)cconfiguration_superClass);
 
+    strcpy(str, ccfg_id);
+    strcat(str, ".");
+    strcat(instance_node->str, ";");
+    strcat(instance_node->str, str);
+
     xmlTextWriterStartElement(cproject_writer, (xmlChar*)"folderInfo");
-    strcpy(str, instance->config_gnu_cross_exe);
-    strcat(str, ".");   // what is this trailing dot for?
     xmlTextWriterWriteAttribute(cproject_writer, id, (xmlChar*)str);
     xmlTextWriterWriteAttribute(cproject_writer, name, (xmlChar*)"/");
     xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"resourcePath", (xmlChar*)"");
@@ -224,21 +235,25 @@ int _put_configuration(bool debugBuild, instance_t *instance, const char *cconfi
     xmlTextWriterWriteAttribute(cproject_writer, superClass, (xmlChar*)parent_str);
 
     xmlTextWriterStartElement(cproject_writer, option);
+    xmlTextWriterWriteAttribute(cproject_writer, name, (xmlChar*)"Internal Toolchain Type");
     strcpy(parent_str, "com.st.stm32cube.ide.mcu.option.internal.toolchain.type");
     put_id(parent_str, id_str);
     xmlTextWriterWriteAttribute(cproject_writer, id, (xmlChar*)id_str);
     xmlTextWriterWriteAttribute(cproject_writer, superClass, (xmlChar*)parent_str);
     xmlTextWriterWriteAttribute(cproject_writer, value, (xmlChar*)"com.st.stm32cube.ide.mcu.gnu.managedbuild.toolchain.base.gnu-tools-for-stm32");
     xmlTextWriterWriteAttribute(cproject_writer, valueType, (xmlChar*)"string");
+    xmlTextWriterWriteAttribute(cproject_writer, useByScannerDiscovery, (xmlChar*)"false");
     xmlTextWriterEndElement(cproject_writer); // option
 
     xmlTextWriterStartElement(cproject_writer, option);
+    xmlTextWriterWriteAttribute(cproject_writer, name, (xmlChar*)"Internal Toolchain Version");
     strcpy(parent_str, "com.st.stm32cube.ide.mcu.option.internal.toolchain.version");
     put_id(parent_str, id_str);
     xmlTextWriterWriteAttribute(cproject_writer, id, (xmlChar*)id_str);
     xmlTextWriterWriteAttribute(cproject_writer, superClass, (xmlChar*)parent_str);
     xmlTextWriterWriteAttribute(cproject_writer, value, (xmlChar*)"7-2018-q2-update");
     xmlTextWriterWriteAttribute(cproject_writer, valueType, (xmlChar*)"string");
+    xmlTextWriterWriteAttribute(cproject_writer, useByScannerDiscovery, (xmlChar*)"false");
     xmlTextWriterEndElement(cproject_writer); // option
 
     if (Mcu[0] != 0) {
@@ -250,28 +265,33 @@ int _put_configuration(bool debugBuild, instance_t *instance, const char *cconfi
         xmlTextWriterWriteAttribute(cproject_writer, superClass, (xmlChar*)parent_str);
         xmlTextWriterWriteAttribute(cproject_writer, value, (xmlChar*)Mcu);
         xmlTextWriterWriteAttribute(cproject_writer, valueType, (xmlChar*)"string");
+        xmlTextWriterWriteAttribute(cproject_writer, useByScannerDiscovery, (xmlChar*)"true");
         xmlTextWriterEndElement(cproject_writer); // option
     } else
         printf("Warning: no Mcu defined (%s from cmake)\r\n", from_cache.board);
 
 
     xmlTextWriterStartElement(cproject_writer, option);
+    xmlTextWriterWriteAttribute(cproject_writer, name, (xmlChar*)"CpuId");
     strcpy(parent_str, "com.st.stm32cube.ide.mcu.gnu.managedbuild.option.target_cpuid");
     put_id(parent_str, id_str);
     xmlTextWriterWriteAttribute(cproject_writer, id, (xmlChar*)id_str);
     xmlTextWriterWriteAttribute(cproject_writer, superClass, (xmlChar*)parent_str);
     xmlTextWriterWriteAttribute(cproject_writer, value, (xmlChar*)"0");
     xmlTextWriterWriteAttribute(cproject_writer, valueType, (xmlChar*)"string");
+    xmlTextWriterWriteAttribute(cproject_writer, useByScannerDiscovery, (xmlChar*)"false");
     xmlTextWriterEndElement(cproject_writer); // option
 
 
     xmlTextWriterStartElement(cproject_writer, option);
+    xmlTextWriterWriteAttribute(cproject_writer, name, (xmlChar*)"CpuCoreId");
     strcpy(parent_str, "com.st.stm32cube.ide.mcu.gnu.managedbuild.option.target_coreid");
     put_id(parent_str, id_str);
     xmlTextWriterWriteAttribute(cproject_writer, id, (xmlChar*)id_str);
     xmlTextWriterWriteAttribute(cproject_writer, superClass, (xmlChar*)parent_str);
     xmlTextWriterWriteAttribute(cproject_writer, value, (xmlChar*)"0");
     xmlTextWriterWriteAttribute(cproject_writer, valueType, (xmlChar*)"string");
+    xmlTextWriterWriteAttribute(cproject_writer, useByScannerDiscovery, (xmlChar*)"false");
     xmlTextWriterEndElement(cproject_writer); // option
 
     for (struct node_s *my_list = from_codemodel.compile_fragment_list; my_list != NULL; my_list = my_list->next) {
@@ -279,6 +299,7 @@ int _put_configuration(bool debugBuild, instance_t *instance, const char *cconfi
             continue;
         if (strncmp(my_list->str, "-mfpu=", 6) == 0) {
             xmlTextWriterStartElement(cproject_writer, option);
+            xmlTextWriterWriteAttribute(cproject_writer, name, (xmlChar*)"Floating-point unit");
             strcpy(parent_str, "com.st.stm32cube.ide.mcu.gnu.managedbuild.option.fpu");
             put_id(parent_str, id_str);
             xmlTextWriterWriteAttribute(cproject_writer, id, (xmlChar*)id_str);
@@ -288,10 +309,12 @@ int _put_configuration(bool debugBuild, instance_t *instance, const char *cconfi
             strcat(str, my_list->str + 6);  // +6: -mfpu=
             xmlTextWriterWriteAttribute(cproject_writer, value, (xmlChar*)str);
             xmlTextWriterWriteAttribute(cproject_writer, valueType, enumerated);
+            xmlTextWriterWriteAttribute(cproject_writer, useByScannerDiscovery, (xmlChar*)"true");
             xmlTextWriterEndElement(cproject_writer); // option
             my_list->taken = true;
         } else if (strncmp(my_list->str, "-mfloat-abi=", 12) == 0) {
             xmlTextWriterStartElement(cproject_writer, option);
+            xmlTextWriterWriteAttribute(cproject_writer, name, (xmlChar*)"Floating-point ABI");
             strcpy(parent_str, "com.st.stm32cube.ide.mcu.gnu.managedbuild.option.floatabi");
             put_id(parent_str, id_str);
             xmlTextWriterWriteAttribute(cproject_writer, id, (xmlChar*)id_str);
@@ -301,6 +324,7 @@ int _put_configuration(bool debugBuild, instance_t *instance, const char *cconfi
             strcat(str, my_list->str + 12);  // +12: -mmfloat-abi=
             xmlTextWriterWriteAttribute(cproject_writer, value, (xmlChar*)str);
             xmlTextWriterWriteAttribute(cproject_writer, valueType, enumerated);
+            xmlTextWriterWriteAttribute(cproject_writer, useByScannerDiscovery, (xmlChar*)"true");
             xmlTextWriterEndElement(cproject_writer); // option
             my_list->taken = true;
         }
@@ -312,6 +336,7 @@ int _put_configuration(bool debugBuild, instance_t *instance, const char *cconfi
         put_id(parent_str, id_str);
         xmlTextWriterWriteAttribute(cproject_writer, id, (xmlChar*)id_str);
         xmlTextWriterWriteAttribute(cproject_writer, name, (xmlChar*)"Board");
+        xmlTextWriterWriteAttribute(cproject_writer, useByScannerDiscovery, (xmlChar*)"false");
         xmlTextWriterWriteAttribute(cproject_writer, superClass, (xmlChar*)parent_str);
         xmlTextWriterWriteAttribute(cproject_writer, value, (xmlChar*)Board);
         xmlTextWriterWriteAttribute(cproject_writer, valueType, (xmlChar*)"string");
@@ -347,10 +372,13 @@ int _put_configuration(bool debugBuild, instance_t *instance, const char *cconfi
     xmlTextWriterWriteAttribute(cproject_writer, superClass, (xmlChar*)parent_str);
     xmlTextWriterEndElement(cproject_writer); // builder
 
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"tool");
     sprintf(parent_str, "%s.tool.c.compiler", TITLE);
-    put_id(parent_str, instance->tool_gnu_cross_c_compiler);
-    xmlTextWriterWriteAttribute(cproject_writer, id, (xmlChar*)instance->tool_gnu_cross_c_compiler);
+    put_id(parent_str, str);
+    strcat(instance_node->str, ";");
+    strcat(instance_node->str, str);
+
+    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"tool");
+    xmlTextWriterWriteAttribute(cproject_writer, id, (xmlChar*)str);
     xmlTextWriterWriteAttribute(cproject_writer, name, (xmlChar*)"MCU GCC Compiler");
     xmlTextWriterWriteAttribute(cproject_writer, superClass, (xmlChar*)parent_str);
 
@@ -417,6 +445,7 @@ int _put_configuration(bool debugBuild, instance_t *instance, const char *cconfi
     xmlTextWriterEndElement(cproject_writer); // option 
 
     xmlTextWriterStartElement(cproject_writer, option);
+    xmlTextWriterWriteAttribute(cproject_writer, name, (xmlChar*)"Include paths (-I)");
     xmlTextWriterWriteAttribute(cproject_writer, IS_BUILTIN_EMPTY, (xmlChar*)"false");
     xmlTextWriterWriteAttribute(cproject_writer, IS_VALUE_EMPTY, (xmlChar*)"false");
     strcpy(parent_str, "com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.option.includepaths");
@@ -517,10 +546,13 @@ int _put_configuration(bool debugBuild, instance_t *instance, const char *cconfi
     // any -W -f -m not already added
     put_c_other_flags();
 
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"inputType");
     sprintf(parent_str, "%s.tool.c.compiler.input.c", TITLE);
-    put_id(parent_str, instance->tool_gnu_cross_c_compiler_input);
-    xmlTextWriterWriteAttribute(cproject_writer, id, (xmlChar*)instance->tool_gnu_cross_c_compiler_input);
+    put_id(parent_str, str);
+    strcat(instance_node->str, ";");
+    strcat(instance_node->str, str);
+
+    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"inputType");
+    xmlTextWriterWriteAttribute(cproject_writer, id, (xmlChar*)str);
     xmlTextWriterWriteAttribute(cproject_writer, superClass, (xmlChar*)parent_str);
     xmlTextWriterEndElement(cproject_writer); // inputType
 
@@ -692,6 +724,7 @@ int _put_configuration(bool debugBuild, instance_t *instance, const char *cconfi
     xmlTextWriterWriteAttribute(cproject_writer, superClass, (xmlChar*)parent_str);
 
     xmlTextWriterStartElement(cproject_writer, option);
+    xmlTextWriterWriteAttribute(cproject_writer, name, (xmlChar*)"Debug level");
     sprintf(parent_str, "%s.tool.assembler.option.debuglevel", TITLE);
     put_id(parent_str, id_str);
     xmlTextWriterWriteAttribute(cproject_writer, id, (xmlChar*)id_str);

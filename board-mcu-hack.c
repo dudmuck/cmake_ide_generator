@@ -206,6 +206,7 @@ void translate_board_mcu(const char *board_in, char *board_out, char *mcu_out)
     }
 }
 
+volatile char wbr = 0;
 #ifdef __WIN32__
 int fread_(char *buffer, unsigned len, FILE *fp)
 {
@@ -216,8 +217,11 @@ int fread_(char *buffer, unsigned len, FILE *fp)
     for (n = 0; n < len; ) {
         unsigned to_read = len - n;
         ret = read(fd, ptr, to_read);
-        if (ret < 1)
+        if (ret < 1) {
+            /* struct stat.st_size returning larger value than can actually be read */
+            buffer[n] = 0;
             return n;
+        }
         n += ret;
         ptr += ret;
     }

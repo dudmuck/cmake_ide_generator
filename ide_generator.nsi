@@ -20,6 +20,7 @@ File C:\src\cmake_ide_generator\build\query-cmake.exe
 File C:\src\cmake_ide_generator\build\stm32cubeide-parse-reply.exe
 File C:\src\cmake_ide_generator\build\sw4stm32-parse-reply.exe
 File C:\src\cmake_ide_generator\build\ccs-parse-reply.exe
+File C:\src\cmake_ide_generator\build\e2studio-parse-reply.exe
 File C:\src\cmake_ide_generator\translate_board_mcu.json 
 File C:\winbuilds\bin\libjson-c-2.dll
 File C:\winbuilds\bin\libxml2-2.dll

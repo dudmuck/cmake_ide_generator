@@ -10,7 +10,10 @@ const char * const GENMAKEBUILDER_ARGUMENTS = NULL;
 const char * const SCANNERCONFIGBUILDER_TRIGGERS = "full,incremental,";
 const char * const SCANNERCONFIGBUILDER_ARGUMENTS = "";
 const char * const CDT_CORE_SETTINGS_CONFIGRELATIONS = NULL;
-const char * const BINARY_PARSER = "org.eclipse.cdt.core.ELF";
+const char * const BINARY_PARSERS[] = {
+    "org.eclipse.cdt.core.ELF",
+    NULL
+};
 const char * const ERROR_PARSERS[] = {
     "org.eclipse.cdt.core.GASErrorParser",
     "org.eclipse.cdt.core.GmakeErrorParser",
@@ -51,7 +54,7 @@ int get_cconfiguration_id(bool debugBuild, const char *mcu, char *out_id, char *
     return 0;
 }
 
-int _put_configuration(bool debugBuild, instance_t *instance, const char *cconfiguration_superClass, const char *Board, const char *Mcu)
+int _put_configuration(bool debugBuild, const char *ccfg_id, const char *cconfiguration_superClass, const char *Board, const char *Mcu, struct node_s *instance_node)
 {
     char id_str[128];
     char parent_str[96];
@@ -69,7 +72,7 @@ int _put_configuration(bool debugBuild, instance_t *instance, const char *cconfi
 
     strcpy(board, Board);
 
-    xmlTextWriterWriteAttribute(cproject_writer, id, (xmlChar*)instance->config_gnu_cross_exe);
+    xmlTextWriterWriteAttribute(cproject_writer, id, (xmlChar*)ccfg_id);
     xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"artifactName", (xmlChar*)from_codemodel.artifactName);
     xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"buildArtefactType", (xmlChar*)"org.eclipse.cdt.build.core.buildArtefactType.exe");
     strcpy(str, "org.eclipse.cdt.build.core.buildArtefactType=org.eclipse.cdt.build.core.buildArtefactType.exe,org.eclipse.cdt.build.core.buildType=org.eclipse.cdt.build.core.buildType.");
@@ -91,10 +94,13 @@ int _put_configuration(bool debugBuild, instance_t *instance, const char *cconfi
     }
     xmlTextWriterWriteAttribute(cproject_writer, name, (xmlChar*)Build);
     xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"parent", (xmlChar*)cconfiguration_superClass);
+
+    strcpy(str, ccfg_id);
+    strcat(str, ".");
+    strcat(instance_node->str, ";");
+    strcat(instance_node->str, str);
      
     xmlTextWriterStartElement(cproject_writer, (xmlChar*)"folderInfo");
-    strcpy(str, instance->config_gnu_cross_exe);
-    strcat(str, ".");   // what is this trailing dot for?
     xmlTextWriterWriteAttribute(cproject_writer, id, (xmlChar*)str);
     xmlTextWriterWriteAttribute(cproject_writer, name, (xmlChar*)"/");
     xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"resourcePath", (xmlChar*)"");
@@ -798,13 +804,16 @@ int _put_configuration(bool debugBuild, instance_t *instance, const char *cconfi
 
     xmlTextWriterEndElement(cproject_writer); // tool   assembler
 
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"tool");
-    xmlTextWriterWriteAttribute(cproject_writer, name, (xmlChar*)"GNU ARM Cross C Compiler");
     strcpy(parent_str, TITLE_ILG);
     strcat(parent_str, ".tool.c.compiler");
+    put_id(parent_str, str);
+    strcat(instance_node->str, ";");
+    strcat(instance_node->str, str);
+
+    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"tool");
+    xmlTextWriterWriteAttribute(cproject_writer, name, (xmlChar*)"GNU ARM Cross C Compiler");
     xmlTextWriterWriteAttribute(cproject_writer, superClass, (xmlChar*)parent_str);
-    put_id(parent_str, instance->tool_gnu_cross_c_compiler);
-    xmlTextWriterWriteAttribute(cproject_writer, id, (xmlChar*)instance->tool_gnu_cross_c_compiler);
+    xmlTextWriterWriteAttribute(cproject_writer, id, (xmlChar*)str);
     xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"commandLinePattern", (xmlChar*)"${SECURE_BUILD_COMMAND} ${COMMAND} ${cross_toolchain_flags} ${FLAGS} -c ${OUTPUT_FLAG} ${OUTPUT_PREFIX}${OUTPUT} -x c ${INPUTS}");
 
     xmlTextWriterStartElement(cproject_writer, option);
@@ -873,12 +882,15 @@ int _put_configuration(bool debugBuild, instance_t *instance, const char *cconfi
     }
     xmlTextWriterEndElement(cproject_writer); // option   assembler include paths
 
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"inputType");
     strcpy(parent_str, TITLE_ILG);
     strcat(parent_str, ".tool.c.compiler.input");
+    put_id(parent_str, str);
+    strcat(instance_node->str, ";");
+    strcat(instance_node->str, str);
+
+    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"inputType");
     xmlTextWriterWriteAttribute(cproject_writer, superClass, (xmlChar*)parent_str);
-    put_id(parent_str, instance->tool_gnu_cross_c_compiler_input);
-    xmlTextWriterWriteAttribute(cproject_writer, id, (xmlChar*)instance->tool_gnu_cross_c_compiler_input);
+    xmlTextWriterWriteAttribute(cproject_writer, id, (xmlChar*)str);
     xmlTextWriterEndElement(cproject_writer); // inputType
 
     xmlTextWriterEndElement(cproject_writer); // tool   c.compiler
@@ -1249,7 +1261,7 @@ int _put_configuration(bool debugBuild, instance_t *instance, const char *cconfi
     return ret;
 }
 
-void put_other_storageModules(const instance_t *debugInstance, const instance_t *releaseInstance)
+void put_other_storageModules()
 {
     char str[128];
     char id_str[196];
@@ -1285,7 +1297,7 @@ void put_other_storageModules(const instance_t *debugInstance, const instance_t 
 
     xmlTextWriterStartElement(cproject_writer, storageModule);
     xmlTextWriterWriteAttribute(cproject_writer, moduleId, (xmlChar*)"scannerConfiguration");
-    put_scannerConfiguration(debugInstance, releaseInstance, "true");
+    put_scannerConfiguration("true");
     xmlTextWriterEndElement(cproject_writer); // storageModule
 }
 

@@ -6,6 +6,7 @@
 #define MAX_DEPTH       12
 
 const char * const CCS = "com.ti.ccstudio.";
+const char * const NXP = "com.crt.advproject.";
 
 const char * const openAttributes[] = {
     "artifactName",
@@ -39,20 +40,13 @@ enumeration_exception_t enumeration_exceptions[] = {
     {"fr.ac6.managedbuild.gnu.c.compiler.option.", "fr.ac6.managedbuild.gnu.c."},
     {"fr.ac6.managedbuild.gnu.cpp.compiler.option.", "fr.ac6.managedbuild.gnu.cpp."},
     {"ilg.gnuarmeclipse.managedbuild.cross.option.arm.target.family", "ilg.gnuarmeclipse.managedbuild.cross.option.arm.target.mcpu"},
+    {"com.crt.advproject.link.cpp.arch", "com.crt.advproject.link.cpp.target."},  /* mcuXpresso */
+    {"com.crt.advproject.link.gcc.hdrlib", "com.crt.advproject.gcc.link.hdrlib"},  /* mcuXpresso */ 
+    {"com.crt.advproject.cpp.arch", "com.crt.advproject.cpp.target."},  /* mcuXpresso */
+    {"com.crt.advproject.gcc.arch", "com.crt.advproject.gcc.target."},  /* mcuXpresso */
+    {"com.crt.advproject.gas.arch", "com.crt.advproject.gas.target."},  /* mcuXpresso */
+    {"com.crt.advproject.link.arch", "com.crt.advproject.link.target."},  /* mcuXpresso */
     {NULL, NULL}
-};
-
-const char *tool_instance_id_substrings[] = {
-    ".tool.c.compiler", /* stm32CubeIDE and e2studio */
-    ".tool.gnu.cross.c.compiler", /* ac6 sw4stm32 */
-    NULL
-};
-
-const char *inputType_instance_id_substrings[] = {
-    /*".tool.c.compiler.input.c",  * stm32CubeIDE */
-    ".tool.c.compiler.input",  /* stm32CubeIDE and e2studio */
-    ".tool.gnu.cross.c.compiler.input.c", /* ac6 sw4stm32 */
-    NULL
 };
 
 typedef struct {
@@ -71,10 +65,6 @@ const fut_optional_elements_t fut_optional_elements[] = {
     { "projectDescription-linkedResources-link", "location", true, NULL},
     { NULL, NULL, false, NULL }
 };
-
-#define MAX_INSTANCES     2
-char _fut_instance_id[MAX_INSTANCES][512];
-unsigned _fut_instance_id_idx;
 
 struct attr_node_s {
     char *name;
@@ -97,12 +87,16 @@ struct node_s {
 struct node_s *_control;
 struct node_s *_fut;
 
+struct name_depth {
+    const char *name;
+    int depth;
+};
+
+struct name_depth ignore_until_end;
+
 volatile unsigned sn;
 static int processNode(xmlTextReaderPtr reader, const char *title, struct node_s **node, bool isFut)
 {
-    bool copy_id_to_instance = false;
-    bool append_id_to_instance = false;
-    const char **id_substrings = NULL;
     int ret = 0;
     int acnt, depth, nodeType = xmlTextReaderNodeType(reader);
     const char *name_in = (char*)xmlTextReaderConstName(reader);
@@ -147,28 +141,6 @@ static int processNode(xmlTextReaderPtr reader, const char *title, struct node_s
     } else
         (*node)->value = NULL;
 
-    if (isFut) {
-        if (XML_NODE_TYPE_START_ELEMENT == nodeType) {
-            printf("fut-start-element  ");
-            if (strcmp((*node)->name, "cconfiguration") == 0)
-                copy_id_to_instance = true;
-            else if (strcmp((*node)->name, "folderInfo") == 0)
-                append_id_to_instance = true;
-            else if (strcmp((*node)->name, "tool") == 0) {
-                append_id_to_instance = true;
-                id_substrings = tool_instance_id_substrings;
-            } else if (strcmp((*node)->name, "inputType") == 0) {
-                append_id_to_instance = true;
-                id_substrings = inputType_instance_id_substrings;
-            }
-        } else if (XML_NODE_TYPE_END_OF_ELEMENT == nodeType) {
-            printf("fut-end-element ");
-            if (strcmp((*node)->name, "cconfiguration") == 0) {
-                _fut_instance_id_idx++;
-            }
-        }
-    } // ..if (isFut)
-
     if (acnt > 0) {
         struct attr_node_s **attrs = &(*node)->attrs;
         while (xmlTextReaderMoveToNextAttribute(reader)) {
@@ -186,28 +158,6 @@ static int processNode(xmlTextReaderPtr reader, const char *title, struct node_s
             (*attrs)->value = malloc(strlen(a_value)+1);
             strcpy((*attrs)->name, a_name);
             strcpy((*attrs)->value, a_value);
-
-            if (copy_id_to_instance) {
-                if (strcmp("id", a_name) == 0) {
-                    strcpy(_fut_instance_id[_fut_instance_id_idx], a_value);
-                }
-            } else if (append_id_to_instance) {
-                if (strcmp("id", a_name) == 0) {
-                    bool append = false;
-                    if (id_substrings != NULL) {
-                        for (unsigned n = 0; id_substrings[n] != NULL; n++)  {
-                            if (strstr(a_value, id_substrings[n]) != NULL)
-                                append = true;
-                        }
-                    } else
-                        append = true;
-
-                    if (append) {
-                        strcat(_fut_instance_id[_fut_instance_id_idx], ";");
-                        strcat(_fut_instance_id[_fut_instance_id_idx], a_value);
-                    }
-                }
-            }
         } // ..attribute iterator
     }
 
@@ -334,6 +284,34 @@ int check_fut_optional()
     return 0;
 } // ..check_fut_optional()
 
+int id_strcmp(const char *ctrl_str_, const char *test_str_)
+{
+    const char *ctrl_ptr = ctrl_str_;
+    const char *test_ptr = test_str_;
+    while (*ctrl_ptr != 0 && *test_ptr != 0) {
+        while (*ctrl_ptr > '/' && *ctrl_ptr < ':')
+            ctrl_ptr++;
+        while (*test_ptr > '/' && *test_ptr < ':')
+            test_ptr++;
+        if (*ctrl_ptr != *test_ptr) {
+            int len;
+            char ctrl[96], test[96];
+            len = (ctrl_ptr - ctrl_str_) + 1;
+            strncpy(ctrl, ctrl_str_, len);
+            ctrl[len] = 0;
+            len = (test_ptr - test_str_) + 1;
+            strncpy(test, test_str_, len);
+            test[len] = 0;
+            return *ctrl_ptr - *test_ptr;
+        } else if (*ctrl_ptr == 0)
+            return 0;   /* end of string, no match failures */
+         
+        ctrl_ptr++;
+        test_ptr++;
+    }
+    return 0;
+}
+
 typedef struct {
     char value_[128];
     bool use_strstr;    // false = strcmp entire value
@@ -359,8 +337,7 @@ int check_fut(struct node_s *ctrlList, struct node_s *fut)
     int ret = 0;
     must_match_attrib_t must_match_attrib[MAX_MUST_MATCH_ATTRIBS];
     const char *required_element_name = NULL;
-    const char *reference_instanceId = NULL;
-    char control_context_str[256];
+    char control_context_str[256];//, inputId[96];
     bool futChecked;
     bool openTextValue = false;
 
@@ -484,44 +461,38 @@ int check_fut(struct node_s *ctrlList, struct node_s *fut)
                 }
             }
         } else if (strcmp(ctrlList->name, "scannerConfigBuildInfo") == 0) {
-            must_match_attrib[0].name = "instanceId";
             for (struct attr_node_s *ctl_attrs = ctrlList->attrs; ctl_attrs != NULL; ctl_attrs = ctl_attrs->next) {
                 if (strcmp(ctl_attrs->name, "instanceId") == 0) {
-                    const char *ptr = strchr(ctl_attrs->value, ';');
-                    if (ptr == NULL) {
-                        printf("\e[31mcontrol %s %s\e[0m\n", ctl_attrs->name, ctl_attrs->value);
-                        return -1;
-                    } else {
-                        int len;
-                        while (*ptr != '.' && ptr > ctl_attrs->value)
-                            ptr--;
-                        len = ptr - ctl_attrs->value;
-                        strncpy(must_match_attrib[0].value_, ctl_attrs->value, len);
-                        must_match_attrib[0].value_[len] = 0;
-                        must_match_attrib[0].value_length = len;
-                        printf("\nreqVal %s\n", must_match_attrib[0].value_);
-                        for (unsigned n = 0; n < builds_idx; n++) {
-                            printf("try build %s ctrl-attrib %s...\n", builds[n], must_match_attrib[0].value_);
-                            if (strstr(must_match_attrib[0].value_, builds[n]) != NULL) {
-                                for (unsigned x = 0; x < _fut_instance_id_idx; x++) {
-                                    printf("try build %s fut_instance_id %s\n", builds[n], _fut_instance_id[x]);
-                                    if (strstr(_fut_instance_id[x], builds[n]) != NULL) {
-                                        printf("found build %s\n", _fut_instance_id[x]);
-                                        reference_instanceId = _fut_instance_id[x];
-                                    }
-                                }
-                                break;
-                            }
-                        }
-                        if (reference_instanceId == NULL) {
-                            printf("\e[31mcouldnt find builds in fut_instances\e[0m\n");
-                            return -1;
-                        }
+                    unsigned n = 0;
+                    const char *src_ptr = strrchr(ctl_attrs->value, ';') + 1;
+                    must_match_attrib[0].name = "instanceId";
+                    must_match_attrib[1].name = must_match_attrib[0].name;
+
+                    must_match_attrib[0].use_strstr = true;
+                    while (src_ptr[n] != 0) {
+                        must_match_attrib[0].value_[n] = src_ptr[n];
+                        n++;
+                        if (src_ptr[n-1] == '.' && (src_ptr[n] <= '9' && src_ptr[n] >= '0'))
+                            break;
                     }
+                    must_match_attrib[0].value_[n] = 0;
+
+                    src_ptr = ctl_attrs->value;
+                    must_match_attrib[1].use_strstr = true;
+                    n = 0;
+                    while (src_ptr[n] != 0) {
+                        must_match_attrib[1].value_[n] = src_ptr[n];
+                        n++;
+                        if (src_ptr[n-1] == '.' && (src_ptr[n] <= '9' && src_ptr[n] >= '0'))
+                            break;
+                    }
+                    must_match_attrib[1].value_[n] = 0;
                 }
             }
         } else if (strcmp(ctrlList->name, "targetPlatform") == 0 || strcmp(ctrlList->name, "builder") == 0 ) {
-            if (strncmp(CCS, fut_cconfiguration_id, strlen(CCS)) == 0) {
+            if (strncmp(CCS, fut_cconfiguration_id, strlen(CCS)) == 0 ||
+                strncmp(NXP, fut_cconfiguration_id, strlen(NXP)) == 0)
+            {
                 must_match_attrib[0].use_strstr = true;
                 must_match_attrib[0].name = "id";
                 strcpy(must_match_attrib[0].value_, control_build);
@@ -554,11 +525,12 @@ int check_fut(struct node_s *ctrlList, struct node_s *fut)
     for (struct attr_node_s *ctl_attrs = ctrlList->attrs; ctl_attrs != NULL; ctl_attrs = ctl_attrs->next) {
         if (strcmp(ctl_attrs->name, "valueType") == 0)
             ctrl_attrib_valueType = ctl_attrs->value;
-        if (strcmp(ctl_attrs->name, "value") == 0)
+        else if (strcmp(ctl_attrs->name, "value") == 0)
             ctrl_attrib_value = ctl_attrs->value;
     }
 
     futChecked = false;
+    struct node_s *failedFutNode = NULL;
     for (struct node_s *futList = fut; futList != NULL; futList = futList->next) {
         char fut_context_str[256];
         unsigned failed_attributes = 0;
@@ -639,6 +611,7 @@ int check_fut(struct node_s *ctrlList, struct node_s *fut)
                 }
             } else if (futList->node_type == XML_NODE_TYPE_END_OF_ELEMENT) {
                 if (prev_fut_node_context->node_type == XML_NODE_TYPE_START_ELEMENT) {
+                    printf("\e[32mend-ok-%d\e[0m ", futList->depth);
                     futList->checked = true;    // end ok
                     prev_fut_node_context->checked = true; // start ok
                 }
@@ -725,15 +698,12 @@ int check_fut(struct node_s *ctrlList, struct node_s *fut)
                             control_value = NULL;
                     } else if (strcmp(ctrlList->name, "scannerConfigBuildInfo") == 0) {
                         if (strcmp(ctl_attrs->name, "instanceId") == 0) {
-                            if (reference_instanceId == NULL) {
-                                printf("\e[31mreference_instanceId == NULL\e[0\n");
+                            control_value = NULL;
+                            if (id_strcmp(ctl_attrs->value, fut_attrs->value) != 0) {
+                                printf("\e[31minstanceId fail\e[0m ");
                                 return -1;
-                            }
-                            control_value = reference_instanceId;
-                            if (strlen(control_value) > strlen(ctl_attrs->value))
-                                len = strlen(control_value);
-                            else
-                                len = strlen(ctl_attrs->value);
+                            } else
+                                ctrl_attrib_ok = true;
                         }
                     } else if (strcmp(ctrlList->name, "toolChain") == 0) {
                         if (strcmp(ctl_attrs->name, "targetTool") == 0)
@@ -741,6 +711,8 @@ int check_fut(struct node_s *ctrlList, struct node_s *fut)
                             while (ctl_attrs->value[len] != '.' && len > 0)
                                 len--;
                         }
+                    } else if (strcmp(ctrlList->name, "entry") == 0 && strcmp(ctl_attrs->name, "flags") == 0) {
+                        control_value = NULL;
                     } else if (strcmp(ctl_attrs->name, "name") == 0) {
                         if (id_is_cconfiguration) {
                             strcpy(fut_cconfiguration_name, fut_attrs->value);
@@ -820,7 +792,8 @@ int check_fut(struct node_s *ctrlList, struct node_s *fut)
 
             futList->checked = true;
             futChecked = true;
-        }
+        } else
+            failedFutNode = futList;
     } // ..fut node iterator
 
     if (futChecked) {
@@ -839,6 +812,22 @@ int check_fut(struct node_s *ctrlList, struct node_s *fut)
             }
         }
 
+        /*
+        if (strcmp(ctrlList->name, "storageModule") == 0) {
+            for (struct attr_node_s *ctl_attrs = ctrlList->attrs; ctl_attrs != NULL; ctl_attrs = ctl_attrs->next) {
+                if (strcmp(ctl_attrs->name, "moduleId") == 0) {
+                    if (strcmp(ctl_attrs->value, "com.nxp.mcuxpresso.core.datamodels") == 0 ||
+                        strcmp(ctl_attrs->value, "com.crt.config") == 0)
+                    {
+                        ignore_until_end.depth = ctrlList->depth;
+                        ignore_until_end.name = ctrlList->name;
+                        optional = true;
+                    }
+                }
+            }
+        }
+        */
+
         if (!optional) {
             for (struct attr_node_s *ctl_attrs = ctrlList->attrs; ctl_attrs != NULL; ctl_attrs = ctl_attrs->next) {
                 if (strcmp(ctl_attrs->name, "superClass") == 0) {
@@ -853,7 +842,12 @@ int check_fut(struct node_s *ctrlList, struct node_s *fut)
         }
 
         if (!optional) {
-            printf("\n%s \e[31mline %d not-futChecked\e[0m ", control_context_str, __LINE__);
+            printf("\n%s \e[31mline %d not-futChecked\n", control_context_str, __LINE__);
+            if (failedFutNode) {
+                printf("control %d %s %s\n", ctrlList->depth, nodeTypeToString(ctrlList->node_type), ctrlList->name);
+                printf("    fut %d %s %s\n", failedFutNode->depth, nodeTypeToString(failedFutNode->node_type), failedFutNode->name);
+            }
+            printf("\e[0m");
             ret = -1;
         }
     }
@@ -873,8 +867,25 @@ int compare(struct node_s *control, struct node_s *fut)
     for (unsigned n = 0; n < MAX_BUILDS; n++)
         builds[n][0] = 0;
 
+    ignore_until_end.depth = -1;
+    ignore_until_end.name = NULL;
+
     for (struct node_s *ctrlList = control; ctrlList != NULL; ctrlList = ctrlList->next) {
         printf("%d compare(D%d %s %s) ", ctrlList->serialNumber, ctrlList->depth, nodeTypeToString(ctrlList->node_type), ctrlList->name);
+        if (ignore_until_end.depth != -1) {
+            if (ctrlList->depth < ignore_until_end.depth) {
+                ret = -1;
+                break;
+            } else if (ctrlList->depth == ignore_until_end.depth && ctrlList->node_type == XML_NODE_TYPE_END_OF_ELEMENT) {
+                if (strcmp(ctrlList->name, ignore_until_end.name) == 0) {
+                    ignore_until_end.depth = -1;
+                    ignore_until_end.name = NULL;
+                }
+            }
+            printf("\e[33mignore\e[0m\n");
+            continue;
+        }
+
         if (check_fut(ctrlList, fut) < 0) {
             ret = -1;
             break;
@@ -931,19 +942,11 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    _fut_instance_id_idx = 0;
     ret = save_xml_file(xml_reader, &_fut, "fut", true);
     if (ret < 0) {
         printf("%d = save_xml_file(fut)\n", ret);
         return ret;
     }
-/*
-    printf("_fut_instance_id_idx:%d\n", _fut_instance_id_idx);
-    for (unsigned n = 0; n < _fut_instance_id_idx; n++) {
-        printf("%d) \"%s\"\n", n, _fut_instance_id[n]);
-    }
-    return -1;
-*/
     printf("#############################################################\n");
     print_nodes(_fut, "Fut");
 

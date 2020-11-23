@@ -5,7 +5,10 @@ const char * const GENMAKEBUILDER_ARGUMENTS = NULL;
 const char * const SCANNERCONFIGBUILDER_TRIGGERS = "full,incremental,";
 const char * const SCANNERCONFIGBUILDER_ARGUMENTS = "";
 const char * const CDT_CORE_SETTINGS_CONFIGRELATIONS = NULL;
-const char * const BINARY_PARSER = "org.eclipse.cdt.core.ELF";
+const char * const BINARY_PARSERS[] = {
+    "org.eclipse.cdt.core.ELF",
+    NULL
+};
 const char * const ERROR_PARSERS[] = {
     "org.eclipse.cdt.core.GASErrorParser",
     "org.eclipse.cdt.core.GmakeErrorParser",
@@ -17,7 +20,7 @@ const char * const ERROR_PARSERS[] = {
 
 const char * const TITLE = "fr.ac6.managedbuild";
 
-void put_other_storageModules(const instance_t *debugInstance, const instance_t *releaseInstance)
+void put_other_storageModules()
 {
     char parent_str[96];
     char id_str[128];
@@ -38,13 +41,15 @@ void put_other_storageModules(const instance_t *debugInstance, const instance_t 
 
     xmlTextWriterStartElement(cproject_writer, storageModule);
     xmlTextWriterWriteAttribute(cproject_writer, moduleId, (xmlChar*)"scannerConfiguration");
-    put_scannerConfiguration(debugInstance, releaseInstance, "");
+    put_scannerConfiguration("");
     xmlTextWriterEndElement(cproject_writer); // storageModule
 
     xmlTextWriterStartElement(cproject_writer, storageModule);
     xmlTextWriterWriteAttribute(cproject_writer, moduleId, (xmlChar*)"org.eclipse.cdt.core.LanguageSettingsProviders");
     xmlTextWriterEndElement(cproject_writer); // storageModule
 
+#if 0
+    /* optional storage modules in new ac6 project */
     xmlTextWriterStartElement(cproject_writer, storageModule);
     xmlTextWriterWriteAttribute(cproject_writer, moduleId, (xmlChar*)"refreshScope");
     xmlTextWriterEndElement(cproject_writer); // storageModule
@@ -52,6 +57,7 @@ void put_other_storageModules(const instance_t *debugInstance, const instance_t 
     xmlTextWriterStartElement(cproject_writer, storageModule);
     xmlTextWriterWriteAttribute(cproject_writer, moduleId, (xmlChar*)"org.eclipse.cdt.make.core.buildtargets");
     xmlTextWriterEndElement(cproject_writer); // storageModule
+#endif /* if 0 */
 }
 
 
@@ -206,7 +212,7 @@ void get_c_dialect_value_from_fragment(const char *in, const char **out)
         *out = "c90";
 }
 
-int _put_configuration(bool debugBuild, instance_t *instance, const char *cconfiguration_superClass, const char *Board, const char *Mcu)
+int _put_configuration(bool debugBuild, const char *ccfg_id, const char *cconfiguration_superClass, const char *Board, const char *Mcu, struct node_s *instance_node)
 {
     int ret = 0;
     char linkerScript[128];
@@ -245,16 +251,19 @@ int _put_configuration(bool debugBuild, instance_t *instance, const char *cconfi
     xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"cleanCommand", (xmlChar*)"rm -rf");  // on windows too?
     xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"description", (xmlChar*)"");
     //xmlTextWriterWriteAttribute(cproject_writer, "errorParsers", "org.eclipse.cdt.core.GASErrorParser;org.eclipse.cdt.core.GmakeErrorParser;org.eclipse.cdt.core.GLDErrorParser;org.eclipse.cdt.core.CWDLocator;org.eclipse.cdt.core.GCCErrorParser");
-    xmlTextWriterWriteAttribute(cproject_writer, id, (xmlChar*)instance->config_gnu_cross_exe);
+    xmlTextWriterWriteAttribute(cproject_writer, id, (xmlChar*)ccfg_id);
     xmlTextWriterWriteAttribute(cproject_writer, name, (xmlChar*)Build);
     //xmlTextWriterWriteAttribute(cproject_writer, "optionalBuildProperties", "org.eclipse.cdt.docker.launcher.containerbuild.property.volumes=,org.eclipse.cdt.docker.launcher.containerbuild.property.selectedvolumes=");
     xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"parent", (xmlChar*)cconfiguration_superClass);
 
     put_post_build_steps(artifactExtension);
 
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"folderInfo");
-    strcpy(str, instance->config_gnu_cross_exe);
+    strcpy(str, ccfg_id);
     strcat(str, ".");   // what is this trailing dot for?
+    strcat(instance_node->str, ";");
+    strcat(instance_node->str, str);
+
+    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"folderInfo");
     xmlTextWriterWriteAttribute(cproject_writer, id, (xmlChar*)str);
     xmlTextWriterWriteAttribute(cproject_writer, name, (xmlChar*)"/");
     xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"resourcePath", (xmlChar*)"");
@@ -278,6 +287,48 @@ int _put_configuration(bool debugBuild, instance_t *instance, const char *cconfi
         xmlTextWriterEndElement(cproject_writer); // option
     } else
         printf("Warning: no Mcu defined (%s from cmake)\r\n", from_cache.board);
+
+    const char *fpu = NULL;
+    const char *float_abi = NULL;
+    for (struct node_s *my_list = from_codemodel.compile_fragment_list; my_list != NULL; my_list = my_list->next) {
+        if (strncmp(my_list->str, "-mfpu=", 6) == 0) {
+            fpu = my_list->str + 6;
+            my_list->taken = true;
+        } else if (strncmp(my_list->str, "-mfloat-abi=", 12) == 0) {
+            float_abi = my_list->str + 12;
+            my_list->taken = true;
+        }
+    }
+    if (fpu) {
+        xmlTextWriterStartElement(cproject_writer, option);
+        xmlTextWriterWriteAttribute(cproject_writer, valueType, enumerated);
+        xmlTextWriterWriteAttribute(cproject_writer, name, (xmlChar*)"Floating point hardware");
+        strcpy(parent_str, TITLE);
+        strcat(parent_str, ".option.gnu.cross.fpu");
+        xmlTextWriterWriteAttribute(cproject_writer, superClass, (xmlChar*)parent_str);
+        put_id(parent_str, id_str);
+        xmlTextWriterWriteAttribute(cproject_writer, id, (xmlChar*)id_str);
+        strcpy(str, parent_str);
+        strcat(str, ".");
+        strcat(str, fpu);
+        xmlTextWriterWriteAttribute(cproject_writer, value, (xmlChar*)str);
+        xmlTextWriterEndElement(cproject_writer); // option
+    }
+    if (float_abi) {
+        xmlTextWriterStartElement(cproject_writer, option);
+        xmlTextWriterWriteAttribute(cproject_writer, valueType, enumerated);
+        xmlTextWriterWriteAttribute(cproject_writer, name, (xmlChar*)"Floating point hardware");
+        strcpy(parent_str, TITLE);
+        strcat(parent_str, ".option.gnu.cross.floatabi");
+        xmlTextWriterWriteAttribute(cproject_writer, superClass, (xmlChar*)parent_str);
+        put_id(parent_str, id_str);
+        xmlTextWriterWriteAttribute(cproject_writer, id, (xmlChar*)id_str);
+        strcpy(str, parent_str);
+        strcat(str, ".");
+        strcat(str, float_abi);
+        xmlTextWriterWriteAttribute(cproject_writer, value, (xmlChar*)str);
+        xmlTextWriterEndElement(cproject_writer); // option
+    }
 
     if (Board[0] != 0) {
         xmlTextWriterStartElement(cproject_writer, option);
@@ -320,10 +371,13 @@ int _put_configuration(bool debugBuild, instance_t *instance, const char *cconfi
     xmlTextWriterWriteAttribute(cproject_writer, superClass, (xmlChar*)parent_str);
     xmlTextWriterEndElement(cproject_writer); // builder
 
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"tool");
     sprintf(parent_str, "%s.tool.gnu.cross.c.compiler", TITLE);
-    put_id(parent_str, instance->tool_gnu_cross_c_compiler);
-    xmlTextWriterWriteAttribute(cproject_writer, id, (xmlChar*)instance->tool_gnu_cross_c_compiler);
+    put_id(parent_str, str);
+    strcat(instance_node->str, ";");
+    strcat(instance_node->str, str);
+
+    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"tool");
+    xmlTextWriterWriteAttribute(cproject_writer, id, (xmlChar*)str);
     xmlTextWriterWriteAttribute(cproject_writer, name, (xmlChar*)"MCU GCC Compiler");
     xmlTextWriterWriteAttribute(cproject_writer, superClass, (xmlChar*)parent_str);
 
@@ -489,10 +543,13 @@ int _put_configuration(bool debugBuild, instance_t *instance, const char *cconfi
     // any -W -f -m not already added
     put_c_other_flags();
 
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"inputType");
     sprintf(parent_str, "%s.tool.gnu.cross.c.compiler.input.c", TITLE);
-    put_id(parent_str, instance->tool_gnu_cross_c_compiler_input);
-    xmlTextWriterWriteAttribute(cproject_writer, id, (xmlChar*)instance->tool_gnu_cross_c_compiler_input);
+    put_id(parent_str, str);
+    strcat(instance_node->str, ";");
+    strcat(instance_node->str, str);
+
+    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"inputType");
+    xmlTextWriterWriteAttribute(cproject_writer, id, (xmlChar*)str);
     xmlTextWriterWriteAttribute(cproject_writer, superClass, (xmlChar*)parent_str);
     xmlTextWriterEndElement(cproject_writer); // inputType
 

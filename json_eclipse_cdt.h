@@ -10,11 +10,7 @@
 
 #include "xml.h"
 
-typedef struct {
-    char config_gnu_cross_exe[96];
-    char tool_gnu_cross_c_compiler[96];
-    char tool_gnu_cross_c_compiler_input[96];
-} instance_t;
+#define INSTANCE_MAX_STRLEN     384
 
 typedef struct {
     char board[64];
@@ -47,7 +43,7 @@ extern const char * const GENMAKEBUILDER_ARGUMENTS;
 extern const char * const SCANNERCONFIGBUILDER_TRIGGERS;
 extern const char * const SCANNERCONFIGBUILDER_ARGUMENTS;
 extern const char * const CDT_CORE_SETTINGS_CONFIGRELATIONS;
-extern const char * const BINARY_PARSER;
+extern const char * const BINARY_PARSERS[];
 extern const char * const ERROR_PARSERS[];
 
 int project_start(bool);
@@ -59,13 +55,13 @@ void put_id(const char *in, char *out);
 /* callbacks: */
 void write_natures(void);
 int get_cconfiguration_id(bool, const char*, char*, char*);
-int _put_configuration(bool, instance_t*, const char *, const char *, const char *);
+int _put_configuration(bool, const char *, const char *, const char *, const char *, struct node_s *);
 void put_listOptionValue(xmlTextWriterPtr, bool, const char *);
 void put_additionalInput(xmlTextWriterPtr, const char*, const char *);
-void put_other_storageModules(const instance_t *, const instance_t *);
+void put_other_storageModules(void);
 int cproject_init(void);
 void put_project_other_builders(void);
-void put_scannerConfiguration(const instance_t *debugInstance, const instance_t *releaseInstance, const char *is_problemReportingEnabled);
+void put_scannerConfiguration(const char *is_problemReportingEnabled);
 void put_other_cconfiguration_storageModules(bool);
 int unbuilt_source(const char *, const char *);
 void cat_additional_exclude_directories(char *);

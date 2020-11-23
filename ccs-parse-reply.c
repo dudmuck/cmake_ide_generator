@@ -13,7 +13,10 @@ const char * const GENMAKEBUILDER_ARGUMENTS = "";
 const char * const SCANNERCONFIGBUILDER_TRIGGERS = "full,incremental,";
 const char * const SCANNERCONFIGBUILDER_ARGUMENTS = "";
 const char * const CDT_CORE_SETTINGS_CONFIGRELATIONS = "2";
-const char * const BINARY_PARSER = "com.ti.ccstudio.binaryparser.CoffParser";
+const char * const BINARY_PARSERS[] = {
+    "com.ti.ccstudio.binaryparser.CoffParser",
+    NULL
+};
 const char * const ERROR_PARSERS[] = {
     "org.eclipse.cdt.core.GmakeErrorParser",
     "com.ti.ccstudio.errorparser.CoffErrorParser",
@@ -34,7 +37,7 @@ bool little_endian;
 bool isElfFormat;
 char linkerCommandFile[64];
 
-void put_other_storageModules(const instance_t *debugInstance, const instance_t *releaseInstance)
+void put_other_storageModules()
 {
     char parent_str[128];
     char str[128];
@@ -169,7 +172,7 @@ int cproject_init()
     return ret;
 }
 
-int _put_configuration(bool debugBuild, instance_t *instance, const char *cconfiguration_superClass, const char *Board, const char *Mcu)
+int _put_configuration(bool debugBuild, const char *ccfg_id, const char *cconfiguration_superClass, const char *Board, const char *Mcu, struct node_s *instance_node)
 {
     int ret = 0;
     char parent_str[96];
@@ -223,16 +226,20 @@ int _put_configuration(bool debugBuild, instance_t *instance, const char *cconfi
     xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"buildProperties", (xmlChar*)"");
     xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"cleanCommand", (xmlChar*)"${CG_CLEAN_CMD}");
     xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"description", (xmlChar*)"");
-    xmlTextWriterWriteAttribute(cproject_writer, id, (xmlChar*)instance->config_gnu_cross_exe);
+    xmlTextWriterWriteAttribute(cproject_writer, id, (xmlChar*)ccfg_id);
     xmlTextWriterWriteAttribute(cproject_writer, name, (xmlChar*)Build);
     xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"parent", (xmlChar*)cconfiguration_superClass);
 
-    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"folderInfo");
-    strcpy(str, instance->config_gnu_cross_exe);
+    strcpy(str, ccfg_id);
     strcat(str, ".");
+    strcat(instance_node->str, ";");
+    strcat(instance_node->str, str);
+
+    xmlTextWriterStartElement(cproject_writer, (xmlChar*)"folderInfo");
     xmlTextWriterWriteAttribute(cproject_writer, id, (xmlChar*)str);
     xmlTextWriterWriteAttribute(cproject_writer, name, (xmlChar*)"/");
     xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"resourcePath", (xmlChar*)"");
+
 
     xmlTextWriterStartElement(cproject_writer, (xmlChar*)"toolChain");
     strcpy(parent_str, TITLE_buildDefinitions);
