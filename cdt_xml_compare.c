@@ -12,6 +12,7 @@ const char * const openAttributes[] = {
     "artifactName",
     "buildPath",
     "postbuildStep",
+    "resourcePath", /* todo folderInfo */
     NULL
 };
 
@@ -19,6 +20,7 @@ const char * const openAttributes[] = {
 const char * const optionalElements[] = {
     "listOptionValue",
     "sourceEntries",
+    "outputEntries",
     "entry",
     NULL
 };
@@ -26,7 +28,33 @@ const char * const optionalElements[] = {
 /* superClasses in control file which arent required to be in FUT */
 const char * const optionalSuperClasses[] = {
     "com.st.stm32cube.ide.mcu.gnu.managedbuild.option.defaults" ,
+    "fr.ac6.managedbuild.option.gnu.cross.prefix",  // arm-none-eabi-
+    "fr.ac6.managedbuild.option.gnu.cross.instructionSet", // ac6 should already know this
+    "fr.ac6.managedbuild.gnu.c.compiler.option.misc.other", // ? instead uses "fr.act.managedbuid" without 'l' ?
+    "gnu.c.compiler.option.misc.verbose",
+    "gnu.c.compiler.option.include.files",
+    "gnu.cpp.compiler.option.optimization.level",
+    "gnu.c.link.option.libs",
+    "gnu.c.link.option.paths",
     NULL
+};
+
+typedef struct {
+    const char *element_name;
+    const char *attribute_name;
+    const char *superClass;
+} optional_attributes_t;
+
+const optional_attributes_t optional_attributes[] = {
+    { "builder", "autoBuildTarget", NULL },
+    { "builder", "cleanBuildTarget", NULL },
+    { "builder", "enableAutoBuild", NULL },
+    { "builder", "enableCleanBuild", NULL },
+    { "builder", "enabledIncrementalBuild", NULL },
+    { "builder", "incrementalBuildTarget", NULL },
+    { "builder", "parallelBuildOn", NULL },
+    { "tool", "command", "fr.ac6.managedbuild.tool.gnu.cross.c.compiler" },
+    { NULL, NULL, NULL }
 };
 
 typedef struct {
@@ -34,7 +62,7 @@ typedef struct {
     const char *value_prefix;
 } enumeration_exception_t;
 
-enumeration_exception_t enumeration_exceptions[] = {
+const enumeration_exception_t enumeration_exceptions[] = {
     {"gnu.c.compiler.option.", "gnu.c."}, /* for ac6 sw4stm32 */
     {"gnu.cpp.compiler.option.", "gnu.cpp.compiler."}, /* for ac6 sw4stm32 */
     {"fr.ac6.managedbuild.gnu.c.compiler.option.", "fr.ac6.managedbuild.gnu.c."},
@@ -58,10 +86,14 @@ typedef struct {
 
 const fut_optional_elements_t fut_optional_elements[] = {
     { "projectDescription", "linkedResources", false, NULL},
+    { "projectDescription", "variableList", false, NULL},
+    { "projectDescription-variableList", "variable", false, NULL},
+    { "projectDescription-variableList-variable", "name", true, NULL},
+    { "projectDescription-variableList-variable", "value", true, NULL},
     { "projectDescription-linkedResources", "link", false, NULL},
     { "projectDescription-linkedResources-link", "name", true, NULL},
     { "projectDescription-linkedResources-link", "type", true, NULL},
-    { "projectDescription-linkedResources-link", "locationURI", false, "virtual:/virtual"},
+    { "projectDescription-linkedResources-link", "locationURI", true, NULL},
     { "projectDescription-linkedResources-link", "location", true, NULL},
     { NULL, NULL, false, NULL }
 };
@@ -639,16 +671,42 @@ int check_fut(struct node_s *ctrlList, struct node_s *fut)
             for (struct attr_node_s *ctl_attrs = ctrlList->attrs; ctl_attrs != NULL; ctl_attrs = ctl_attrs->next) {
                 bool has_defaultValue = false;
                 bool ctrl_attrib_ok = false;
+                const char *ctrl_attrib_ok_upon_superClass = NULL;
                 printf("checkAttrib-%s ", ctl_attrs->name);
+
+                for (unsigned n = 0; optional_attributes[n].element_name != NULL; n++) {
+                    if (strcmp(optional_attributes[n].element_name , ctrlList->name) == 0) {
+                        if (strcmp(optional_attributes[n].attribute_name, ctl_attrs->name) == 0) {
+                            if (optional_attributes[n].superClass == NULL) {
+                                ctrl_attrib_ok = true;
+                                break;
+                            } else {
+                                ctrl_attrib_ok_upon_superClass = optional_attributes[n].superClass;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if (ctrl_attrib_ok) {
+                    printf("OA ");
+                    continue;
+                }
+
                 for (struct attr_node_s *fut_attrs = futList->attrs; fut_attrs != NULL; fut_attrs = fut_attrs->next) {
                     const char *control_value;
                     int len;
                     bool openValue;
                     if (strcmp(fut_attrs->name, "id") == 0)
                         strcpy(fut_attrib_id, fut_attrs->value);
-                    else if (strcmp(fut_attrs->name, "superClass") == 0)
+                    else if (strcmp(fut_attrs->name, "superClass") == 0) {
                         strcpy(fut_attrib_superClass, fut_attrs->value);
-                    else if (strcmp(fut_attrs->name, "value") == 0)
+                        if (ctrl_attrib_ok_upon_superClass != NULL) {
+                            if (strcmp(fut_attrs->value, ctrl_attrib_ok_upon_superClass) == 0) {
+                                ctrl_attrib_ok = true;
+                            }
+                        }
+                    } else if (strcmp(fut_attrs->name, "value") == 0)
                         strcpy(fut_attrib_value, fut_attrs->value);
                     else if (strcmp(fut_attrs->name, "defaultValue") == 0) {
                         has_defaultValue = true;
@@ -752,7 +810,7 @@ int check_fut(struct node_s *ctrlList, struct node_s *fut)
                     ctrl_attrib_ok = true;  // defaultValue is permitted to stand in place of value
 
                 if (!ctrl_attrib_ok) {
-                    printf("\e[31mcontrol-attribute-fail\e[0m %s=%s\n", ctl_attrs->name, ctl_attrs->value);
+                    printf("\e[31mline %d control-attribute-fail\e[0m %s=%s\n", __LINE__, ctl_attrs->name, ctl_attrs->value);
                     return -1;
                 }
             } // ..control attribute iterator
@@ -842,7 +900,32 @@ int check_fut(struct node_s *ctrlList, struct node_s *fut)
         }
 
         if (!optional) {
-            printf("\n%s \e[31mline %d not-futChecked\n", control_context_str, __LINE__);
+            char foc[256];
+            for (unsigned n = 0; fut_optional_elements[n].context != NULL; n++) {
+                strcpy(foc, fut_optional_elements[n].context);
+                if (XML_NODE_TYPE_TEXT == ctrlList->node_type) {
+                    strcat(foc, "-");
+                    strcat(foc, fut_optional_elements[n].name);
+                }
+                if (strcmp(control_context_str, foc) == 0) {
+                    if (XML_NODE_TYPE_TEXT == ctrlList->node_type) {
+                        if (fut_optional_elements[n].value_open) {
+                            optional = true;    /* text value doesnt need to match */
+                            break;
+                        }
+                    } else if (XML_NODE_TYPE_START_ELEMENT == ctrlList->node_type) {
+                        if (strcmp(fut_optional_elements[n].name, ctrlList->name) == 0) {
+                            //printf(" ###### ");
+                            optional = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (!optional) {
+            printf("\n\e[31m%s line %d not-futChecked\n", control_context_str, __LINE__);
             if (failedFutNode) {
                 printf("control %d %s %s\n", ctrlList->depth, nodeTypeToString(ctrlList->node_type), ctrlList->name);
                 printf("    fut %d %s %s\n", failedFutNode->depth, nodeTypeToString(failedFutNode->node_type), failedFutNode->name);

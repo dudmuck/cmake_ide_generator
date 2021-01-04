@@ -55,6 +55,7 @@ const struct board_table_s board_table[] = {
     { "NAMote72",       "STM32L152RCTx" },
     { "B-L072Z-LRWAN1", "STM32L072CZYx" },
     { "MSP-EXP432P401R", "MSP432P401R" },
+    { "stm32l475_discovery", "STM32L475VGTx" },
     { NULL, NULL }
 
 };

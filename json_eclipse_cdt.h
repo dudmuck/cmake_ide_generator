@@ -12,8 +12,21 @@
 
 #define INSTANCE_MAX_STRLEN     384
 
+struct node_s {
+    char *str;
+    const void *arg;
+    bool taken;
+    struct node_s *next;
+};
+
 typedef struct {
-    char board[64];
+    char *board;
+    struct node_s *c_flags_debug;
+    struct node_s *c_flags_release;
+    struct node_s *cxx_flags_debug;
+    struct node_s *cxx_flags_release;
+    struct node_s *asm_flags_debug;
+    struct node_s *asm_flags_release;
 } from_cache_t;
 
 typedef struct {
@@ -24,11 +37,6 @@ typedef struct {
     struct node_s *linker_fragment_list;
 } from_codemodel_t;
 
-struct node_s {
-    char *str;
-    bool taken;
-    struct node_s *next;
-};
 
 extern from_codemodel_t from_codemodel;
 extern struct node_s *defines_list;
@@ -46,6 +54,14 @@ extern const char * const CDT_CORE_SETTINGS_CONFIGRELATIONS;
 extern const char * const BINARY_PARSERS[];
 extern const char * const ERROR_PARSERS[];
 
+extern bool cpp_input; // false=c-project, true=cpp-project
+extern bool cpp_linker; // true=linking done by c++ compiler
+extern char linker_script[];
+extern const char *build;
+extern const char *Build;
+extern struct node_s *c_flags;  // from CMAKE_C_FLAGS_<build>
+extern struct node_s *cpp_flags;    // from CMAKE_CXX_FLAGS_<build>
+
 int project_start(bool);
 int cproject_start(bool);
 void free_lists(void);
@@ -53,8 +69,9 @@ void get_us(char *dest);
 void put_id(const char *in, char *out);
 
 /* callbacks: */
-void write_natures(void);
+void write_natures_(void);
 int get_cconfiguration_id(bool, const char*, char*, char*);
+struct node_s *add_instance(const char *ccfg_id);
 int _put_configuration(bool, const char *, const char *, const char *, const char *, struct node_s *);
 void put_listOptionValue(xmlTextWriterPtr, bool, const char *);
 void put_additionalInput(xmlTextWriterPtr, const char*, const char *);

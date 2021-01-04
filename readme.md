@@ -25,7 +25,7 @@ Too many combinations of hardware variations: target MCU, board type, add-on boa
 Eclipse CDT based with gcc
 * [System Workbench for STM32](https://www.openstm32.org/HomePage) aka Ac6 SW4STM32
 * [STM32CubeIDE](https://www.st.com/en/development-tools/stm32cubeide.html)
-* Renesas [e2 studio](https://www.renesas.com/us/en/products/software-tools/tools/ide/e2studio.html). only [RA family](https://www.renesas.com/us/en/products/microcontrollers-microprocessors/ra.html) at this time.
+* Renesas [e2 studio](https://www.renesas.com/us/en/software-tool/e-studio). only [RA family](https://www.renesas.com/us/en/products/microcontrollers-microprocessors/ra.html) at this time.
 * Texas Instruments [Code Composer Studio (CCS)](https://www.ti.com/tool/CCSTUDIO)  only [msp432 family](https://www.ti.com/wireless-connectivity/overview.html) at this time.
 
 Projects would create directly if source cmake project uses gcc, and IDE also uses gcc.

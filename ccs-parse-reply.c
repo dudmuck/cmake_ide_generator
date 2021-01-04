@@ -100,12 +100,10 @@ int get_cconfiguration_id(bool debugBuild, const char *mcu, char *out_id, char *
     return 0;
 }
 
-void write_natures()
+void write_natures_()
 {
     xmlTextWriterWriteElement(project_writer, nature, (xmlChar*)"com.ti.ccstudio.core.ccsNature");
-    xmlTextWriterWriteElement(project_writer, nature, (xmlChar*)"org.eclipse.cdt.core.cnature");
     xmlTextWriterWriteElement(project_writer, nature, (xmlChar*)"org.eclipse.cdt.managedbuilder.core.managedBuildNature");
-    xmlTextWriterWriteElement(project_writer, nature, (xmlChar*)"org.eclipse.cdt.core.ccnature");
     xmlTextWriterWriteElement(project_writer, nature, (xmlChar*)"org.eclipse.cdt.managedbuilder.core.ScannerConfigNature");
 }
 
@@ -182,15 +180,9 @@ int _put_configuration(bool debugBuild, const char *ccfg_id, const char *cconfig
     char linker_id_str[128];
     char str[256];
     const char * const artifactExtension = "out";
-    const char *Build;
     bool arm = false;
     const char *silicon_version = NULL;
     const char *code_state = NULL;
-    if (debugBuild) {
-        Build = "Debug";
-    } else {
-        Build = "Release";
-    }
 
     strcpy(deviceVariant, Mcu);
     if (strstr(cconfiguration_superClass, MSP432) != NULL) {
@@ -230,10 +222,12 @@ int _put_configuration(bool debugBuild, const char *ccfg_id, const char *cconfig
     xmlTextWriterWriteAttribute(cproject_writer, name, (xmlChar*)Build);
     xmlTextWriterWriteAttribute(cproject_writer, (xmlChar*)"parent", (xmlChar*)cconfiguration_superClass);
 
+    /*
     strcpy(str, ccfg_id);
     strcat(str, ".");
-    strcat(instance_node->str, ";");
-    strcat(instance_node->str, str);
+    strcat((*instance_node)->str, ";");
+    strcat((*instance_node)->str, str);
+    */
 
     xmlTextWriterStartElement(cproject_writer, (xmlChar*)"folderInfo");
     xmlTextWriterWriteAttribute(cproject_writer, id, (xmlChar*)str);

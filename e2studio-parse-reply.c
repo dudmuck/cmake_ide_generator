@@ -29,9 +29,8 @@ const char * const TITLE_ILG_OPTION = "ilg.gnuarmeclipse.managedbuild.cross.opti
 
 char board[64];
 
-void write_natures()
+void write_natures_()
 {
-    xmlTextWriterWriteElement(project_writer, nature, (xmlChar*)"org.eclipse.cdt.core.cnature");
     xmlTextWriterWriteElement(project_writer, nature, (xmlChar*)"org.eclipse.cdt.managedbuilder.core.managedBuildNature");
     xmlTextWriterWriteElement(project_writer, nature, (xmlChar*)"org.eclipse.cdt.managedbuilder.core.ScannerConfigNature");
     xmlTextWriterWriteElement(project_writer, nature, (xmlChar*)"com.renesas.cdt.ddsc.contentgen.ddscNature");
@@ -60,15 +59,6 @@ int _put_configuration(bool debugBuild, const char *ccfg_id, const char *cconfig
     char parent_str[96];
     char str[512];
     int ret = 0;
-    const char *build;
-    const char *Build;
-    if (debugBuild) {
-        build = "debug";
-        Build = "Debug";
-    } else {
-        build = "release";
-        Build = "Release";
-    }
 
     strcpy(board, Board);
 
@@ -97,8 +87,6 @@ int _put_configuration(bool debugBuild, const char *ccfg_id, const char *cconfig
 
     strcpy(str, ccfg_id);
     strcat(str, ".");
-    strcat(instance_node->str, ";");
-    strcat(instance_node->str, str);
      
     xmlTextWriterStartElement(cproject_writer, (xmlChar*)"folderInfo");
     xmlTextWriterWriteAttribute(cproject_writer, id, (xmlChar*)str);
