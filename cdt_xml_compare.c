@@ -95,6 +95,11 @@ const fut_optional_elements_t fut_optional_elements[] = {
     { "projectDescription-linkedResources-link", "type", true, NULL},
     { "projectDescription-linkedResources-link", "locationURI", true, NULL},
     { "projectDescription-linkedResources-link", "location", true, NULL},
+    { "cproject-storageModule-cconfiguration-storageModule-configuration", "fileInfo", true, NULL },
+    { "cproject-storageModule-cconfiguration-storageModule-configuration-fileInfo", "tool", true, NULL },
+    { "cproject-storageModule-cconfiguration-storageModule-configuration-fileInfo-tool", "inputType", true, NULL },
+    { "cproject-storageModule-cconfiguration-storageModule-configuration-fileInfo-tool", "outputType", true, NULL },
+    { "cproject-storageModule-cconfiguration-storageModule-configuration-fileInfo-tool-inputType", "additionalInput", true, NULL },
     { NULL, NULL, false, NULL }
 };
 
@@ -530,6 +535,15 @@ int check_fut(struct node_s *ctrlList, struct node_s *fut)
                 strcpy(must_match_attrib[0].value_, control_build);
                 must_match_attrib[0].value_length = strlen(control_build);
             }
+        } else if (strcmp(ctrlList->name, "content-type-mapping") == 0) {
+                must_match_attrib[0].name = "content-type";
+                for (struct attr_node_s *ctl_attrs = ctrlList->attrs; ctl_attrs != NULL; ctl_attrs = ctl_attrs->next) {
+                    if (strcmp(ctl_attrs->name, must_match_attrib[0].name) == 0) {
+                        strcpy(must_match_attrib[0].value_, ctl_attrs->value);
+                        must_match_attrib[0].value_length = strlen(ctl_attrs->value);
+                        break;
+                    }
+                }
         }
     } // ..if (XML_NODE_TYPE_START_ELEMENT == ctrlList->node_type)
     else if (XML_NODE_TYPE_TEXT == ctrlList->node_type) {
@@ -769,8 +783,9 @@ int check_fut(struct node_s *ctrlList, struct node_s *fut)
                             while (ctl_attrs->value[len] != '.' && len > 0)
                                 len--;
                         }
-                    } else if (strcmp(ctrlList->name, "entry") == 0 && strcmp(ctl_attrs->name, "flags") == 0) {
-                        control_value = NULL;
+                    } else if (strcmp(ctrlList->name, "entry") == 0) {
+                        if (strcmp(ctl_attrs->name, "flags") == 0 || strcmp(ctl_attrs->name, "excluding") == 0)
+                            control_value = NULL;
                     } else if (strcmp(ctl_attrs->name, "name") == 0) {
                         if (id_is_cconfiguration) {
                             strcpy(fut_cconfiguration_name, fut_attrs->value);
@@ -911,11 +926,12 @@ int check_fut(struct node_s *ctrlList, struct node_s *fut)
                     if (XML_NODE_TYPE_TEXT == ctrlList->node_type) {
                         if (fut_optional_elements[n].value_open) {
                             optional = true;    /* text value doesnt need to match */
+                            printf("\e[34mfut-optional-text\e[0m");
                             break;
                         }
                     } else if (XML_NODE_TYPE_START_ELEMENT == ctrlList->node_type) {
                         if (strcmp(fut_optional_elements[n].name, ctrlList->name) == 0) {
-                            //printf(" ###### ");
+                            printf("\e[34mfut-optional-element\e[0m");
                             optional = true;
                             break;
                         }

@@ -2228,7 +2228,6 @@ int get_cconfiguration_id(bool debugBuild, const char *mcu, char *out_id, char *
 
 void write_natures()
 {
-    xmlTextWriterWriteElement(project_writer, nature, (xmlChar*)"org.eclipse.cdt.core.cnature");
     xmlTextWriterWriteElement(project_writer, nature, (xmlChar*)"com.nxp.mcuxpresso.core.datamodels.sdkNature");
     xmlTextWriterWriteElement(project_writer, nature, (xmlChar*)"org.eclipse.cdt.managedbuilder.core.managedBuildNature");
     xmlTextWriterWriteElement(project_writer, nature, (xmlChar*)"org.eclipse.cdt.managedbuilder.core.ScannerConfigNature");

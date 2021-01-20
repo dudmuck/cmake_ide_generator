@@ -56,6 +56,7 @@ const struct board_table_s board_table[] = {
     { "B-L072Z-LRWAN1", "STM32L072CZYx" },
     { "MSP-EXP432P401R", "MSP432P401R" },
     { "stm32l475_discovery", "STM32L475VGTx" },
+    { "cc3220_launchpad", "CC3220sf" },
     { NULL, NULL }
 
 };

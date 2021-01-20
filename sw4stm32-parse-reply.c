@@ -1007,7 +1007,7 @@ void put_cdt_project()
 {
 }
 
-void write_natures_()
+void write_natures()
 {
     xmlTextWriterWriteElement(project_writer, nature, (xmlChar*)"fr.ac6.mcu.ide.core.MCUProjectNature");
     xmlTextWriterWriteElement(project_writer, nature, (xmlChar*)"fr.ac6.mcu.ide.core.MCUSingleCoreProjectNature");

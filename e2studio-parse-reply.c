@@ -29,7 +29,7 @@ const char * const TITLE_ILG_OPTION = "ilg.gnuarmeclipse.managedbuild.cross.opti
 
 char board[64];
 
-void write_natures_()
+void write_natures()
 {
     xmlTextWriterWriteElement(project_writer, nature, (xmlChar*)"org.eclipse.cdt.managedbuilder.core.managedBuildNature");
     xmlTextWriterWriteElement(project_writer, nature, (xmlChar*)"org.eclipse.cdt.managedbuilder.core.ScannerConfigNature");

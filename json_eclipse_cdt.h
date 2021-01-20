@@ -41,6 +41,7 @@ typedef struct {
 extern from_codemodel_t from_codemodel;
 extern struct node_s *defines_list;
 extern struct node_s *includes_list;
+extern struct node_s *link_libs;
 extern from_cache_t from_cache;
 
 extern xmlTextWriterPtr project_writer;
@@ -69,7 +70,7 @@ void get_us(char *dest);
 void put_id(const char *in, char *out);
 
 /* callbacks: */
-void write_natures_(void);
+void write_natures(void);
 int get_cconfiguration_id(bool, const char*, char*, char*);
 struct node_s *add_instance(const char *ccfg_id);
 int _put_configuration(bool, const char *, const char *, const char *, const char *, struct node_s *);
@@ -82,5 +83,6 @@ void put_scannerConfiguration(const char *is_problemReportingEnabled);
 void put_other_cconfiguration_storageModules(bool);
 int unbuilt_source(const char *, const char *);
 void cat_additional_exclude_directories(char *);
+void header_in_define(const char **arg);
 
 

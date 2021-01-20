@@ -4,6 +4,7 @@
 
 #include "json_eclipse_cdt.h"
 #include "board-mcu-hack.h"
+//#define VERBOSE     1
 
 xmlTextWriterPtr project_writer;
 xmlTextWriterPtr cproject_writer;
@@ -16,9 +17,11 @@ const char * const reply_directory = ".cmake/api/v1/reply";
 struct node_s *defines_list;
 struct node_s *includes_list;
 struct node_s *instance_list;
-static struct node_s *link_libs;
+struct node_s *link_libs;   // library names EXECUTABLE links in precompiled (not built)
+struct node_s *required_targets;    // library names EXECUTABLE target links in, built from source
 static struct node_s *source_files;
 static struct node_s *language_list;
+static struct node_s *static_libraries;
 
 bool cpp_input; // false=c-project, true=cpp-project
 bool cpp_linker; // true=linking done by c++ compiler
@@ -142,12 +145,91 @@ next_token:
     return ret;
 }
 
-/* only parses executable target */
+int preparse_targets(const char *source_path, const char *jsonFileName)
+{
+    FILE *fp;
+    int ret = -1;;
+    struct stat st;
+    struct json_object *type_jobj, *parsed_json, *jobj;
+    char *buffer = NULL;
+    char full_path[256];
+    const char *targetType;
+
+    strcpy(full_path, reply_directory);
+    strcat(full_path, "/");
+    strcat(full_path, jsonFileName);
+
+    fp = fopen(full_path, "r");
+    if (fp == NULL) {
+        perror(full_path);
+        return -1;
+    }
+
+    if (stat(full_path, &st) < 0) {
+        strcat(full_path, " stat");
+        perror(full_path);
+        goto preparse_target_done;
+    }
+
+    buffer = malloc(st.st_size * 2); // x2: json_tokern_parse is operating beyond buffer
+#ifdef __WIN32__
+    ret = fread_(buffer, st.st_size, fp);
+#else
+    ret = fread(buffer, st.st_size, 1, fp);
+#endif
+
+    /* ? trailing garbage ? */
+    for (unsigned n = st.st_size; n > 0; n--) {
+        if (buffer[n] == '}')
+            break;
+        else
+            buffer[n] = 0;
+    }
+
+    parsed_json = json_tokener_parse(buffer);
+    if (parsed_json == NULL) {
+        printf("%s\n", buffer);
+        printf("cannot parse json in %s (%d bytes) st_size:%ld\r\n", full_path, (int)strlen(buffer), st.st_size);
+        ret = -1;
+        goto preparse_target_done;
+    }
+
+    if (!json_object_object_get_ex(parsed_json, "type", &type_jobj)) {
+        printf("no type in %s\r\n", full_path);
+        goto preparse_target_done;
+    }
+    targetType = json_object_get_string(type_jobj);
+
+    if (strcmp("STATIC_LIBRARY", targetType) == 0 && json_object_object_get_ex(parsed_json, "artifacts", &jobj)) {
+        struct json_object *path_jobj;
+        unsigned n_artifacts = json_object_array_length(jobj);
+        for (unsigned n = 0; n < n_artifacts; n++) {
+            struct json_object *artifact_jobj = json_object_array_get_idx(jobj, n);
+            if (json_object_object_get_ex(artifact_jobj, "path", &path_jobj)) {
+                bool already_have = false;
+                const char *path = json_object_get_string(path_jobj);
+                for (struct node_s *my_list = static_libraries; my_list != NULL; my_list = my_list->next) {
+                    if (strcmp(my_list->str, path) == 0) {
+                        already_have = true;
+                        break;
+                    }
+                }
+                if (!already_have)
+                    save_to_list(path, &static_libraries, NULL);
+            }
+        }
+    }
+
+preparse_target_done:
+    free(buffer);
+    fclose(fp);
+    return ret;
+}
+
 int parse_executable_target(const char *source_path, const char *jsonFileName)
 {
-    struct json_object *link_jobj;
+    struct json_object *link_jobj, *parsed_json;
     struct stat st;
-    struct json_object *parsed_json;
     char *buffer = NULL;
     char full_path[256];
     int ret = -1;;
@@ -234,10 +316,49 @@ int parse_executable_target(const char *source_path, const char *jsonFileName)
                     json_object_object_get_ex(commandFragment_jobj, "fragment", &fragment_jobj);
                     fragment = json_object_get_string(fragment_jobj);
                     if (strcmp(role, "libraries") == 0) {
-                        save_to_list(fragment, &link_libs, langPtr);
+                        bool static_library = false;
+                        if (linker_script[0] == 0 && strstr(fragment, ".cmd") != NULL) {
+                            /* texas instruments linker script */
+                            strcpy(linker_script, fragment);
+                        }
+                        for (struct node_s *my_list = static_libraries; my_list != NULL; my_list = my_list->next) {
+                            char tmp[256];
+                            const char *fragment_ptr = fragment;
+                            if (strchr(my_list->str, '/') != NULL && strchr(fragment, '\\') != NULL) {
+                                /* path conversion, windows fuck-nuttery */
+                                unsigned len = strlen(fragment);
+                                strcpy(tmp, fragment);
+                                for (unsigned n = 0; n < len; n++) {
+                                    if (tmp[n] == '\\')
+                                        tmp[n] = '/';
+                                }
+                                fragment_ptr = tmp;
+                            }
+                            if (strcmp(my_list->str, fragment_ptr) == 0)
+                                static_library = true;  /* built by this project */
+                        }
+                        if (!static_library) {
+                            /* static_library: only save libs which arent built by project */
+                            bool already_have = false;
+                            for (struct node_s *my_list = link_libs; my_list != NULL; my_list = my_list->next) {
+                                if (strcmp(my_list->str, fragment) == 0) {
+                                    already_have = true;
+                                    break;
+                                }
+                            }
+                            if (!already_have) {
+                                save_to_list(fragment, &link_libs, langPtr);
 #ifdef VERBOSE
-                        printf("%d \e[7m%s\e[0m exe link library %s\n", __LINE__, langPtr, fragment);
+                                printf("%d \e[7m%s\e[0m exe link library %s\n", __LINE__, langPtr, fragment);
 #endif
+                            }
+                        } else {
+                            /* static_library true */
+#ifdef VERBOSE
+                            printf("\e[34m%d %s \e[7m%s\e[0m \e[34mexe link %s\e[0m\n", __LINE__, targetType, langPtr, fragment);
+#endif
+                            save_to_list(fragment, &required_targets, langPtr);
+                        }
                     }
                 }
             }
@@ -271,6 +392,41 @@ exe_target_done:
     free(buffer);
     fclose(fp);
     return ret;
+}
+
+void header_in_define(const char **arg)
+{
+    bool quoted;
+    const char *in;
+    unsigned in_idx, out_idx, arg_len;;
+    char *str, *a = strchr(*arg, '\"');
+    if (a == NULL)
+        return;
+    if (strstr(a, ".h\"") == NULL)
+        return;
+    arg_len = strlen(*arg);
+    str = malloc(arg_len + 3); // TODO: free later?
+
+    quoted = false;
+    in = *arg;
+    for (in_idx = 0, out_idx = 0; in_idx < arg_len; ) {
+        bool quote = in[in_idx] == '\"';
+        if (quoted) {
+            if (quote) {
+                str[out_idx++] = '>';
+                quoted = false;
+            }
+            str[out_idx++] = in[in_idx++];
+        } else {
+            str[out_idx++] = in[in_idx++];
+            if (quote) {
+                str[out_idx++] = '<';
+                quoted = true;
+            }
+        }
+    }
+    str[out_idx] = 0;
+    *arg = str;
 }
 
 int parse_target_file_to_linked_resources(const char *source_path, const char *jsonFileName)
@@ -328,6 +484,10 @@ int parse_target_file_to_linked_resources(const char *source_path, const char *j
     json_object_object_get_ex(parsed_json, "name", &name_jobj);
     const char *targetType = json_object_get_string(type_jobj);
 
+#ifdef VERBOSE
+    printf("line %d %s %s ", __LINE__, json_object_get_string(name_jobj), targetType);
+#endif
+
     const char *artifact_path = NULL;
     /* UTILITY doesnt have "artifacts" */
 
@@ -353,15 +513,28 @@ int parse_target_file_to_linked_resources(const char *source_path, const char *j
         strcmp("EXECUTABLE", targetType) != 0 &&
         strcmp("STATIC_LIBRARY", targetType) != 0)
     {
+#ifdef VERBOSE
         printf("\e[33mignore\e[0m");
+#endif
         goto target_done;
     }
 
+    /* only build targets required by EXECUTABLE target */
     if (artifact_path && strcmp("STATIC_LIBRARY", targetType) == 0) {
         struct node_s *my_list;
         bool needed = false;
-        for (my_list = link_libs; my_list != NULL; my_list = my_list->next) {
-            if (strcmp(artifact_path, my_list->str) == 0) {
+        for (my_list = required_targets; my_list != NULL; my_list = my_list->next) {
+            char tmp[256], *ptr;
+            ptr = my_list->str;
+            if (strchr(my_list->str, '\\') != NULL && strchr(artifact_path, '/') != NULL) {
+                unsigned len = strlen(my_list->str);
+                strcpy(tmp, my_list->str);
+                for (unsigned n = 0; n < len; n++)
+                    if (tmp[n] == '\\')
+                        tmp[n] = '/';
+                ptr = tmp;
+            }
+            if (strcmp(artifact_path, ptr) == 0) {
                 needed = true;
                 break;
             }
@@ -473,14 +646,14 @@ int parse_target_file_to_linked_resources(const char *source_path, const char *j
                         const char *define = json_object_get_string(jobj);
                         bool newDefine = true;
                         for (struct node_s *my_list = defines_list; my_list != NULL; my_list = my_list->next) {
-                            if (strcmp(define, my_list->str) == 0) {
+                            if (strcmp(define , my_list->str) == 0) {
                                 newDefine = false;
                                 break;
                             }
                         }
                         if (newDefine) {
 #ifdef VERBOSE
-                            printf("line %d: %s %s \e[7m%s\e[0m define %s\n", __LINE__, targetType, json_object_get_string(name_jobj), langPtr, define);
+                            printf("\e[33mline %d: %s %s \e[7m%s\e[0m \e[33mdefine %s\e[0m\n", __LINE__, targetType, json_object_get_string(name_jobj), langPtr, define);
 #endif
                             save_to_list(define, &defines_list, langPtr);
                         }
@@ -590,7 +763,9 @@ int parse_target_file_to_linked_resources(const char *source_path, const char *j
     } // ..if (json_object_object_get_ex(parsed_json, "link", &link_jobj))
 
 target_done:
-    //printf(" target_done\n");
+#ifdef VERBOSE
+    printf("\n");
+#endif
     free(buffer);
     fclose(fp);
     return ret;
@@ -704,7 +879,25 @@ int parse_codemodel_to_eclipse_project(const char *jsonFileName)
     json_object_object_get_ex(configuration, "targets", &targets);
     unsigned n_targets = json_object_array_length(targets);
 
-    /* parse executable target first since this will let us know of unused library targets */
+    static_libraries = NULL;
+
+    for (unsigned t = 0; t < n_targets; t++) {
+        struct json_object *target = json_object_array_get_idx(targets, t);
+        struct json_object *name_jobj;
+        if (!json_object_object_get_ex(target, "name", &name_jobj)) {
+            printf("target no name: %s\r\n", json_object_get_string(target));
+        }
+        struct json_object *jsonFile_jobj;
+        if (json_object_object_get_ex(target, "jsonFile", &jsonFile_jobj)) {
+            ret = preparse_targets(source_path, json_object_get_string(jsonFile_jobj));
+            if (ret < 0)
+                break;
+        }
+    }
+
+#ifdef VERBOSE
+    printf("------------------------ ..preparse ---------------------\n");
+#endif
     for (unsigned t = 0; t < n_targets; t++) {
         struct json_object *target = json_object_array_get_idx(targets, t);
         struct json_object *name_jobj;
@@ -718,6 +911,9 @@ int parse_codemodel_to_eclipse_project(const char *jsonFileName)
                 break;
         }
     }
+#ifdef VERBOSE
+    printf("------------------------ ..executable-target ---------------------\n");
+#endif
 
     xmlTextWriterStartElement(project_writer, (xmlChar*)"natures");
     for (struct node_s *my_list = language_list; my_list != NULL; my_list = my_list->next) {
@@ -727,7 +923,7 @@ int parse_codemodel_to_eclipse_project(const char *jsonFileName)
             xmlTextWriterWriteElement(project_writer, nature, (xmlChar*)"org.eclipse.cdt.core.ccnature");
         }
     }
-    write_natures_();
+    write_natures();
     xmlTextWriterEndElement(project_writer); // natures
 
     xmlTextWriterStartElement(project_writer, (xmlChar*)"linkedResources");
@@ -926,6 +1122,7 @@ int project_start(bool force)
         return -1;
     }
 
+    linker_script[0] = 0;
     includes_list = NULL;
     defines_list = NULL;
     from_codemodel.compile_fragment_list = NULL;
@@ -1031,7 +1228,7 @@ struct node_s *add_instance(const char *ccfg_id)
     return *node;
 }
 
-void put_cconfiguration(bool debugBuild)
+int put_cconfiguration(bool debugBuild)
 {
     char cconfiguration_superClass[96];
     char str[256];
@@ -1054,10 +1251,14 @@ void put_cconfiguration(bool debugBuild)
     xmlTextWriterStartElement(cproject_writer, (xmlChar*)"cconfiguration");
 
     translate_board_mcu(from_cache.board, Board, Mcu);
+    if (Mcu[0] == 0) {
+        printf("no Mcu for %s\n", from_cache.board);
+        return -1;
+    }
 
     if (get_cconfiguration_id(debugBuild, Mcu, ccfg_id, cconfiguration_superClass)) {
         printf("get_cconfiguration_id() failed\n");
-        return;
+        return -1;
     }
 
     struct node_s *node = add_instance(ccfg_id);
@@ -1120,6 +1321,7 @@ void put_cconfiguration(bool debugBuild)
     put_other_cconfiguration_storageModules(debugBuild);
 
     xmlTextWriterEndElement(cproject_writer); // cconfiguration
+    return 0;
 }
 
 int cproject_start(bool force)
@@ -1175,11 +1377,10 @@ int cproject_start(bool force)
     }
 
     cpp_linker = false;
-    linker_script[0] = 0;
     for (struct node_s *my_list = from_codemodel.linker_fragment_list; my_list != NULL; my_list = my_list->next) {
         if (strcmp("CXX", (char*)my_list->arg) == 0)
             cpp_linker = true;
-        if (strncmp(my_list->str, "-T", 2) == 0)
+        if (linker_script[0] == 0 && strncmp(my_list->str, "-T", 2) == 0)
             strcpy(linker_script, my_list->str+2);
     }
 
@@ -1189,13 +1390,15 @@ int cproject_start(bool force)
     Build = "Debug";
     c_flags = from_cache.c_flags_debug;
     cpp_flags = from_cache.cxx_flags_debug;
-    put_cconfiguration(true);
+    if (put_cconfiguration(true) < 0)
+        return -1;
 
     build = "release";
     Build = "Release";
     c_flags = from_cache.c_flags_release;
     cpp_flags = from_cache.cxx_flags_release;
-    put_cconfiguration(false);
+    if (put_cconfiguration(false) < 0)
+        return -1;
 
     xmlTextWriterEndElement(cproject_writer); // storageModule
 

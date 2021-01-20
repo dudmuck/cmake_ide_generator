@@ -642,6 +642,31 @@ int _put_configuration(bool debugBuild, const char *ccfg_id, const char *cconfig
             xmlTextWriterEndElement(cproject_writer); // option
         }
 
+        bool other_link_libs = false;
+        for (struct node_s *my_list = from_codemodel.linker_fragment_list; my_list != NULL; my_list = my_list->next) {
+            if (strcmp("C", (char*)my_list->arg) == 0 && strncmp(my_list->str, "-l", 2) == 0) {
+                other_link_libs = true;
+            }
+        }
+
+        if (other_link_libs) {
+            xmlTextWriterStartElement(cproject_writer, option);
+            sprintf(parent_str, "%s.tool.c.linker.option.libraries", TITLE);
+            xmlTextWriterWriteAttribute(cproject_writer, superClass, (xmlChar*)parent_str);
+            put_id(parent_str, id_str);
+            xmlTextWriterWriteAttribute(cproject_writer, id, (xmlChar*)id_str);
+            xmlTextWriterWriteAttribute(cproject_writer, valueType, (xmlChar*)"libs");
+            xmlTextWriterWriteAttribute(cproject_writer, IS_BUILTIN_EMPTY, (xmlChar*)"false");
+            xmlTextWriterWriteAttribute(cproject_writer, IS_VALUE_EMPTY, (xmlChar*)"false");
+            for (struct node_s *my_list = from_codemodel.linker_fragment_list; my_list != NULL; my_list = my_list->next) {
+                if (strcmp("C", (char*)my_list->arg) == 0 && strncmp(my_list->str, "-l", 2) == 0) {
+                    put_listOptionValue(cproject_writer, false, my_list->str+2);
+                    my_list->taken = true;
+                }
+            }
+            xmlTextWriterEndElement(cproject_writer); // option
+        }
+
         xmlTextWriterStartElement(cproject_writer, option);
         xmlTextWriterWriteAttribute(cproject_writer, IS_BUILTIN_EMPTY, (xmlChar*)"false");
         xmlTextWriterWriteAttribute(cproject_writer, IS_VALUE_EMPTY, (xmlChar*)"false");
@@ -697,6 +722,31 @@ int _put_configuration(bool debugBuild, const char *ccfg_id, const char *cconfig
             xmlTextWriterWriteAttribute(cproject_writer, useByScannerDiscovery, (xmlChar*)"false");
             xmlTextWriterWriteAttribute(cproject_writer, value, (xmlChar*)linker_script);
             xmlTextWriterWriteAttribute(cproject_writer, valueType, (xmlChar*)"string");
+            xmlTextWriterEndElement(cproject_writer); // option
+        }
+
+        bool other_link_libs = false;
+        for (struct node_s *my_list = from_codemodel.linker_fragment_list; my_list != NULL; my_list = my_list->next) {
+            if (strcmp("CXX", (char*)my_list->arg) == 0 && strncmp(my_list->str, "-l", 2) == 0) {
+                other_link_libs = true;
+            }
+        }
+
+        if (other_link_libs) {
+            xmlTextWriterStartElement(cproject_writer, option);
+            sprintf(parent_str, "%s.tool.cpp.linker.option.libraries", TITLE);
+            xmlTextWriterWriteAttribute(cproject_writer, superClass, (xmlChar*)parent_str);
+            put_id(parent_str, id_str);
+            xmlTextWriterWriteAttribute(cproject_writer, id, (xmlChar*)id_str);
+            xmlTextWriterWriteAttribute(cproject_writer, valueType, (xmlChar*)"libs");
+            xmlTextWriterWriteAttribute(cproject_writer, IS_BUILTIN_EMPTY, (xmlChar*)"false");
+            xmlTextWriterWriteAttribute(cproject_writer, IS_VALUE_EMPTY, (xmlChar*)"false");
+            for (struct node_s *my_list = from_codemodel.linker_fragment_list; my_list != NULL; my_list = my_list->next) {
+                if (strcmp("CXX", (char*)my_list->arg) == 0 && strncmp(my_list->str, "-l", 2) == 0) {
+                    put_listOptionValue(cproject_writer, false, my_list->str+2);
+                    my_list->taken = true;
+                }
+            }
             xmlTextWriterEndElement(cproject_writer); // option
         }
 
@@ -845,7 +895,7 @@ void get_cpp_debugging_level_superclass(char *parent_str)
     sprintf(parent_str, "%s.tool.cpp.compiler.option.debuglevel", TITLE);
 }
 
-void write_natures_()
+void write_natures()
 {
     xmlTextWriterWriteElement(project_writer, nature, (xmlChar*)"com.st.stm32cube.ide.mcu.MCUProjectNature");
     xmlTextWriterWriteElement(project_writer, nature, (xmlChar*)"com.st.stm32cube.ide.mcu.MCUCubeProjectNature");
